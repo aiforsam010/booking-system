@@ -458,6 +458,27 @@ function linkPatient(id) {
   state.linkedPatientId = id;
 
   const clinic = CLINICS.find(c => c.id === p.clinic)?.name || '';
+  const history = getAppointments()
+    .filter(a => a.patientId === id)
+    .sort((a, b) => b.date.localeCompare(a.date));
+
+  const histHTML = history.length
+    ? `<div class="linked-hist">
+        <div class="lh-title">Booking History (${history.length})</div>
+        ${history.map(a => {
+          const sc = { confirmed:'sc-confirmed', cancelled:'sc-cancelled', completed:'sc-completed' }[a.status] || '';
+          return `<div class="lh-row">
+            <span class="lh-date">${formatDate(a.date)}</span>
+            <span class="lh-sep">·</span>
+            <span class="lh-type">${a.typeName}</span>
+            <span class="lh-sep">·</span>
+            <span class="lh-clinic">${a.clinicName}</span>
+            <span class="status-chip ${sc}" style="margin-left:auto;">${a.status}</span>
+          </div>`;
+        }).join('')}
+      </div>`
+    : '<div class="linked-hist lh-empty">No previous appointments.</div>';
+
   document.getElementById('selected-patient-card').innerHTML = `
     <div class="sp-check">✓</div>
     <div class="sp-detail">
@@ -467,7 +488,8 @@ function linkPatient(id) {
         · ${p.phone}
         ${clinic ? `· <span class="clinic-badge clinic-${p.clinic}">${clinic}</span>` : ''}
       </div>
-    </div>`;
+    </div>
+    ${histHTML}`;
 
   document.getElementById('reg-search-wrap').style.display = 'none';
   document.getElementById('reg-selected-wrap').style.display = 'block';

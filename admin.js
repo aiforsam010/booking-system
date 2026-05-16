@@ -77,6 +77,7 @@ function renderDashboard() {
   document.getElementById('stat-today').textContent     = todayA.length;
   document.getElementById('stat-upcoming').textContent  = appts.filter(a => a.date >= today && a.status === 'confirmed').length;
   document.getElementById('stat-total').textContent     = appts.length;
+  document.getElementById('stat-newpt').textContent     = appts.filter(a => !a.patientId && a.status !== 'cancelled').length;
   document.getElementById('stat-cancelled').textContent = appts.filter(a => a.status === 'cancelled').length;
 
   const container = document.getElementById('today-appts');
@@ -261,10 +262,13 @@ function renderClinicCalendar(clinicId) {
                   return `<td class="wt-cell ${cls}"></td>`;
                 }
 
-                const color = getAvatarColor(doc.name);
+                const isNewPt = !cell.appt.patientId;
+                const color   = isNewPt ? '#ea580c' : getAvatarColor(doc.name);
                 return `<td class="wt-cell wt-appt-cell" rowspan="${cell.rowspan}">
-                  <div class="wt-appt" style="border-left:3px solid ${color};background:${color}18;">
-                    <div class="wt-appt-name">${cell.appt.patientName}</div>
+                  <div class="wt-appt${isNewPt ? ' wt-new-patient' : ''}" style="border-left:3px solid ${color};background:${color}18;">
+                    <div class="wt-appt-name">
+                      ${isNewPt ? '<span class="wt-new-badge">NEW</span>' : ''}${cell.appt.patientName}
+                    </div>
                     ${cell.rowspan >= 2 ? `<div class="wt-appt-type">${cell.appt.typeName}</div>` : ''}
                     ${cell.appt.status === 'confirmed' ? `
                       <div class="wt-appt-btns">
@@ -462,24 +466,67 @@ function renderPatientList() {
     return;
   }
 
+  const allAppts = getAppointments();
   container.innerHTML = `
     <div class="pat-list-header">
-      <span>Patient No.</span><span>Name</span><span>Phone</span><span>Clinic</span><span>Appts</span><span></span>
+      <span>Patient No.</span><span>Name</span><span>Phone</span><span>Clinic</span><span>Visits</span><span></span>
     </div>
     ${patients.map(p => {
       const clinic    = CLINICS.find(c => c.id === p.clinic)?.name || p.clinic || '—';
-      const apptCount = getAppointments().filter(a => a.patientId === p.id).length;
+      const patAppts  = allAppts.filter(a => a.patientId === p.id);
+      const apptCount = patAppts.length;
       return `
-        <div class="pat-row">
+        <div class="pat-row" id="pr-${p.id}">
           <div class="pat-num">${p.patientNumber}</div>
           <div class="pat-name">${p.name}</div>
           <div class="pat-phone">${p.phone}</div>
           <div class="pat-clinic"><span class="clinic-badge clinic-${p.clinic}">${clinic}</span></div>
           <div class="pat-appts">${apptCount}</div>
           <div class="pat-actions">
+            <button class="btn-xs" onclick="togglePatientHistory('${p.id}')">History</button>
             <button class="btn-xs btn-primary" onclick="editPatient('${p.id}')">Edit</button>
           </div>
-        </div>`;
+        </div>
+        <div class="pat-history-panel" id="phist-${p.id}" style="display:none"></div>`;
+    }).join('')}`;
+}
+
+function togglePatientHistory(id) {
+  const el = document.getElementById('phist-' + id);
+  if (!el) return;
+  if (el.style.display === 'none') {
+    renderPatientHistory(id);
+    el.style.display = 'block';
+  } else {
+    el.style.display = 'none';
+  }
+}
+
+function renderPatientHistory(id) {
+  const el = document.getElementById('phist-' + id);
+  if (!el) return;
+  const appts = getAppointments()
+    .filter(a => a.patientId === id)
+    .sort((a, b) => b.date.localeCompare(a.date));
+
+  if (!appts.length) {
+    el.innerHTML = '<div class="phist-empty">No appointment history.</div>';
+    return;
+  }
+  el.innerHTML = `
+    <div class="phist-header">
+      <span>Date</span><span>Time</span><span>Clinic</span><span>Treatment</span><span>Dentist</span><span>Status</span>
+    </div>
+    ${appts.map(a => {
+      const sc = { confirmed:'sc-confirmed', cancelled:'sc-cancelled', completed:'sc-completed' }[a.status] || '';
+      return `<div class="phist-row">
+        <div>${formatDate(a.date)}</div>
+        <div>${a.time}</div>
+        <div>${a.clinicName}</div>
+        <div>${a.typeName}</div>
+        <div>${a.doctorName}</div>
+        <div><span class="status-chip ${sc}">${a.status}</span></div>
+      </div>`;
     }).join('')}`;
 }
 
