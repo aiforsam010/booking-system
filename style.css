@@ -548,16 +548,16 @@ input[type=range].cal-scale-slider { width: 90px; accent-color: var(--primary); 
 .clinic-tab-shaukeiwan { background: #16a34a; }
 
 /* ── 3rd column — Cancelled / Rescheduled ──────────────────────────────────── */
-.wt-side-hdr { background: #fef9ec !important; color: #92400e !important; font-style: italic; min-width: 120px; }
-.wt-side-col { vertical-align: top; padding: 4px 6px; border: 1px solid #fde68a; background: #fffbeb; min-width: 120px; }
-.wt-side-appt { margin-bottom: 6px; padding: 5px 7px; border-radius: 6px; border-left: 3px solid #d1d5db; background: var(--white); }
-.wt-side-rescheduled { border-left-color: #f59e0b; }
-.wt-side-cancelled   { border-left-color: #dc2626; }
-.wt-side-badge { display: inline-block; font-size: 9px; font-weight: 700; padding: 1px 5px; border-radius: 10px; margin-bottom: 2px; text-transform: uppercase; letter-spacing: .04em; }
-.wt-side-rescheduled .wt-side-badge { background: #fef3c7; color: #92400e; }
-.wt-side-cancelled   .wt-side-badge { background: #fee2e2; color: #991b1b; }
-.wt-side-name { font-size: 11px; font-weight: 600; color: var(--text); }
-.wt-side-meta { font-size: 10px; color: var(--text-muted); }
+.wt-side-hdr { background: #f8fafc !important; color: var(--text-muted) !important; font-style: italic; min-width: calc(110px * var(--cal-scale, 1)) !important; }
+.wt-side-col { vertical-align: top; padding: 4px 4px; border: 1px solid var(--border); background: #f8fafc; min-width: calc(110px * var(--cal-scale, 1)); }
+.wt-side-badge { display: inline-block; font-size: 8px; font-weight: 700; padding: 1px 4px; border-radius: 10px; margin-right: 3px; text-transform: uppercase; letter-spacing: .04em; vertical-align: middle; }
+.wt-side-rescheduled { background: #fef3c7; color: #92400e; }
+.wt-side-cancelled   { background: #fee2e2; color: #991b1b; }
+
+/* Faded style for cancelled/rescheduled blocks in the 3rd column */
+.wt-appt-faded { border-left: 3px solid #d1d5db !important; background: #f1f5f9 !important; margin-bottom: 4px; opacity: 0.85; }
+.wt-appt-faded .wt-appt-name { color: #6b7280; font-size: 9px !important; font-weight: 600; }
+.wt-appt-faded .wt-appt-type { color: #9ca3af; font-size: 8px !important; }
 
 /* ── Modal overlay & card ───────────────────────────────────────────────────── */
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 24px; }

@@ -157,8 +157,8 @@ function generateTimeSlots(doctor, dateStr, durationMin) {
 // ── Seed Data ─────────────────────────────────────────────────────────────────
 
 function seedData() {
-  if (localStorage.getItem('clinic_seeded_v6')) return;
-  ['clinic_seeded','clinic_seeded_v2','clinic_seeded_v3','clinic_seeded_v4','clinic_seeded_v5'].forEach(k => localStorage.removeItem(k));
+  if (localStorage.getItem('clinic_seeded_v7')) return;
+  ['clinic_seeded','clinic_seeded_v2','clinic_seeded_v3','clinic_seeded_v4','clinic_seeded_v5','clinic_seeded_v6'].forEach(k => localStorage.removeItem(k));
 
   // Compute Monday of the current week
   const today = new Date(); today.setHours(0,0,0,0);
@@ -202,43 +202,55 @@ function seedData() {
   });
 
   const list = [
-    // ── Central — registered patients ──────────────────────────────────────────
+    // ── Central ── Mon: Dr Samuel Chan only ────────────────────────────────────
     appt('SEED-C01','central','Central',1,0, 9, 0, 'PAT-SEED01','P001','Alice Wong',  '9800 0001','checkup',   'Check-up & Cleaning',  30,'confirmed','Routine exam'),
-    appt('SEED-C02','central','Central',2,0,10, 0, 'PAT-SEED02','P002','Bob Chan',    '9800 0002','filling',   'Filling / Restoration',30,'confirmed','Upper right cavity'),
-    appt('SEED-C03','central','Central',1,1, 9,30, 'PAT-SEED03','P003','Carol Lam',   '9800 0003','consult',   'New Patient Consult',  30,'completed','Assessment complete'),
-    appt('SEED-C04','central','Central',2,2,14, 0, 'PAT-SEED01','P001','Alice Wong',  '9800 0001','whitening', 'Teeth Whitening',      30,'confirmed','Follow-up whitening'),
-    appt('SEED-C05','central','Central',1,3,10, 0, 'PAT-SEED10','P010','Jack Cheung', '9800 0010','checkup',   'Check-up & Cleaning',  30,'confirmed','Annual check'),
-    appt('SEED-C06','central','Central',2,4,11, 0, 'PAT-SEED02','P002','Bob Chan',    '9800 0002','extraction','Tooth Extraction',     30,'confirmed','Wisdom tooth pain'),
-    appt('SEED-C07','central','Central',1,1,14, 0, 'PAT-SEED03','P003','Carol Lam',   '9800 0003','filling',   'Filling / Restoration',30,'cancelled','Cancelled by patient'),
-    // ── Central — new patient bookings ─────────────────────────────────────────
-    appt('SEED-C08','central','Central',2,1,10,30, null,'','Mandy Tsui',  '6100 0031','checkup',   'Check-up & Cleaning',  30,'confirmed','Walk-in new patient'),
-    appt('SEED-C09','central','Central',1,3,14,30, null,'','Nathan Fung', '6100 0032','consult',   'New Patient Consult',  30,'confirmed','New patient referral'),
-    appt('SEED-C10','central','Central',2,4,14,30, null,'','Olivia Kwong','6100 0033','checkup',   'Check-up & Cleaning',  30,'confirmed','New patient walk-in'),
+    appt('SEED-C02','central','Central',1,0,10, 0, 'PAT-SEED03','P003','Carol Lam',   '9800 0003','filling',   'Filling / Restoration',30,'confirmed','Upper right cavity'),
+    appt('SEED-C03','central','Central',1,0,14, 0, null,'','Mandy Tsui',  '6100 0031','consult',   'New Patient Consult',  30,'confirmed','New patient walk-in'),
+    // ── Central ── Tue: Dr Agassi Kwok only ────────────────────────────────────
+    appt('SEED-C04','central','Central',2,1,10, 0, 'PAT-SEED02','P002','Bob Chan',    '9800 0002','filling',   'Filling / Restoration',30,'confirmed','Upper right cavity'),
+    appt('SEED-C05','central','Central',2,1,11, 0, 'PAT-SEED10','P010','Jack Cheung', '9800 0010','checkup',   'Check-up & Cleaning',  30,'confirmed','Annual check'),
+    appt('SEED-C06','central','Central',2,1,14,30, 'PAT-SEED03','P003','Carol Lam',   '9800 0003','extraction','Tooth Extraction',     30,'cancelled','Cancelled by patient'),
+    // ── Central ── Wed: Dr Samuel Chan only ────────────────────────────────────
+    appt('SEED-C07','central','Central',1,2, 9, 0, 'PAT-SEED01','P001','Alice Wong',  '9800 0001','whitening', 'Teeth Whitening',      30,'completed','Whitening complete'),
+    // ── Central ── Thu: Dr Agassi Kwok only ────────────────────────────────────
+    appt('SEED-C08','central','Central',2,3,10, 0, null,'','Nathan Fung', '6100 0032','consult',   'New Patient Consult',  30,'confirmed','New patient referral'),
+    appt('SEED-C09','central','Central',2,3,14, 0, 'PAT-SEED02','P002','Bob Chan',    '9800 0002','extraction','Tooth Extraction',     30,'confirmed','Wisdom tooth pain'),
+    // ── Central ── Fri: Dr Samuel Chan only ────────────────────────────────────
+    appt('SEED-C10','central','Central',1,4, 9, 0, 'PAT-SEED10','P010','Jack Cheung', '9800 0010','checkup',   'Check-up & Cleaning',  30,'confirmed','Annual check'),
+    appt('SEED-C11','central','Central',1,4,10,30, null,'','Olivia Kwong','6100 0033','checkup',   'Check-up & Cleaning',  30,'confirmed','New patient walk-in'),
 
-    // ── Taikoo — registered patients ───────────────────────────────────────────
-    appt('SEED-T01','taikoo','Taikoo',  1,0,10, 0, 'PAT-SEED04','P004','David Ho',   '9800 0004','checkup',   'Check-up & Cleaning',  30,'confirmed','Routine exam'),
-    appt('SEED-T02','taikoo','Taikoo',  2,0,11, 0, 'PAT-SEED05','P005','Emma Cheng', '9800 0005','filling',   'Filling / Restoration',30,'confirmed','Cavity filling'),
+    // ── Taikoo ── Mon: Dr Agassi Kwok only ─────────────────────────────────────
+    appt('SEED-T01','taikoo','Taikoo',  2,0,10, 0, 'PAT-SEED04','P004','David Ho',   '9800 0004','checkup',   'Check-up & Cleaning',  30,'confirmed','Routine exam'),
+    appt('SEED-T02','taikoo','Taikoo',  2,0,11, 0, 'PAT-SEED06','P006','Felix Yuen', '9800 0006','filling',   'Filling / Restoration',30,'confirmed','Cavity filling'),
+    // ── Taikoo ── Tue: Dr Samuel Chan only ─────────────────────────────────────
     appt('SEED-T03','taikoo','Taikoo',  1,1, 9,30, 'PAT-SEED11','P011','Karen Liu',  '9800 0011','whitening', 'Teeth Whitening',      30,'confirmed','Pre-wedding whitening'),
-    appt('SEED-T04','taikoo','Taikoo',  2,2,10,30, 'PAT-SEED04','P004','David Ho',   '9800 0004','rootcanal', 'Root Canal',           30,'completed','Root canal complete'),
-    appt('SEED-T05','taikoo','Taikoo',  1,3,14, 0, 'PAT-SEED12','P012','Leo Pang',   '9800 0012','checkup',   'Check-up & Cleaning',  30,'confirmed','Annual check'),
-    appt('SEED-T06','taikoo','Taikoo',  2,4, 9, 0, 'PAT-SEED06','P006','Felix Yuen', '9800 0006','filling',   'Filling / Restoration',30,'confirmed','Old filling replaced'),
-    appt('SEED-T07','taikoo','Taikoo',  1,2,14, 0, 'PAT-SEED11','P011','Karen Liu',  '9800 0011','extraction','Tooth Extraction',     30,'cancelled','Cancelled — rescheduled'),
-    // ── Taikoo — new patient bookings ──────────────────────────────────────────
-    appt('SEED-T08','taikoo','Taikoo',  2,1,14, 0, null,'','Peter Siu',   '6100 0034','extraction','Tooth Extraction',     30,'confirmed','New patient — impacted'),
-    appt('SEED-T09','taikoo','Taikoo',  1,4,11, 0, null,'','Queenie Ng',  '6100 0035','consult',   'New Patient Consult',  30,'confirmed','New patient assessment'),
+    appt('SEED-T04','taikoo','Taikoo',  1,1,11, 0, null,'','Peter Siu',   '6100 0034','consult',   'New Patient Consult',  30,'confirmed','New patient — first visit'),
+    appt('SEED-T05','taikoo','Taikoo',  1,1,14, 0, 'PAT-SEED11','P011','Karen Liu',  '9800 0011','extraction','Tooth Extraction',     30,'cancelled','Cancelled — rescheduled'),
+    // ── Taikoo ── Wed: Dr Agassi Kwok only ─────────────────────────────────────
+    appt('SEED-T06','taikoo','Taikoo',  2,2,10,30, 'PAT-SEED04','P004','David Ho',   '9800 0004','rootcanal', 'Root Canal',           30,'completed','Root canal complete'),
+    // ── Taikoo ── Thu: Dr Samuel Chan only ─────────────────────────────────────
+    appt('SEED-T07','taikoo','Taikoo',  1,3, 9, 0, 'PAT-SEED12','P012','Leo Pang',   '9800 0012','checkup',   'Check-up & Cleaning',  30,'confirmed','Annual check'),
+    appt('SEED-T08','taikoo','Taikoo',  1,3,11, 0, null,'','Queenie Ng',  '6100 0035','consult',   'New Patient Consult',  30,'confirmed','New patient assessment'),
+    // ── Taikoo ── Fri: Dr Agassi Kwok only ─────────────────────────────────────
+    appt('SEED-T09','taikoo','Taikoo',  2,4,10, 0, 'PAT-SEED06','P006','Felix Yuen', '9800 0006','filling',   'Filling / Restoration',30,'confirmed','Old filling replaced'),
+    appt('SEED-T10','taikoo','Taikoo',  2,4,14, 0, 'PAT-SEED05','P005','Emma Cheng', '9800 0005','extraction','Tooth Extraction',     30,'confirmed','Impacted wisdom tooth'),
 
-    // ── Shau Kei Wan — registered patients ─────────────────────────────────────
+    // ── Shau Kei Wan ── Mon: Dr Samuel Chan only ───────────────────────────────
     appt('SEED-S01','shaukeiwan','Shau Kei Wan',1,0, 9, 0, 'PAT-SEED07','P007','Grace Tsang','9800 0007','checkup',   'Check-up & Cleaning',  30,'confirmed','Routine exam'),
-    appt('SEED-S02','shaukeiwan','Shau Kei Wan',2,1,10, 0, 'PAT-SEED08','P008','Henry Mak',  '9800 0008','consult',   'New Patient Consult',  30,'confirmed','First visit'),
-    appt('SEED-S03','shaukeiwan','Shau Kei Wan',1,2,11, 0, 'PAT-SEED09','P009','Iris Tang',  '9800 0009','rootcanal', 'Root Canal',           30,'confirmed','Root canal'),
-    appt('SEED-S04','shaukeiwan','Shau Kei Wan',2,3,14, 0, 'PAT-SEED07','P007','Grace Tsang','9800 0007','whitening', 'Teeth Whitening',      30,'confirmed','Whitening treatment'),
-    appt('SEED-S05','shaukeiwan','Shau Kei Wan',1,4, 9, 0, 'PAT-SEED09','P009','Iris Tang',  '9800 0009','checkup',   'Check-up & Cleaning',  30,'completed','Annual check'),
-    appt('SEED-S06','shaukeiwan','Shau Kei Wan',2,2,10,30, 'PAT-SEED08','P008','Henry Mak',  '9800 0008','filling',   'Filling / Restoration',30,'cancelled','Cancelled — emergency'),
-    // ── Shau Kei Wan — new patient bookings ────────────────────────────────────
-    appt('SEED-S07','shaukeiwan','Shau Kei Wan',1,1, 9,30, null,'','Raymond Au', '6100 0036','filling',   'Filling / Restoration',30,'confirmed','New patient — two cavities'),
-    appt('SEED-S08','shaukeiwan','Shau Kei Wan',2,4,10, 0, null,'','Stella Chan','6100 0037','consult',   'New Patient Consult',  30,'confirmed','New patient walk-in'),
+    appt('SEED-S02','shaukeiwan','Shau Kei Wan',1,0,10, 0, null,'','Raymond Au', '6100 0036','filling',   'Filling / Restoration',30,'confirmed','New patient — two cavities'),
+    // ── Shau Kei Wan ── Tue: Dr Agassi Kwok only ───────────────────────────────
+    appt('SEED-S03','shaukeiwan','Shau Kei Wan',2,1,10, 0, 'PAT-SEED08','P008','Henry Mak',  '9800 0008','consult',   'New Patient Consult',  30,'confirmed','First visit'),
+    appt('SEED-S04','shaukeiwan','Shau Kei Wan',2,1,11,30, 'PAT-SEED09','P009','Iris Tang',  '9800 0009','filling',   'Filling / Restoration',30,'cancelled','Cancelled — emergency'),
+    // ── Shau Kei Wan ── Wed: Dr Samuel Chan only ───────────────────────────────
+    appt('SEED-S05','shaukeiwan','Shau Kei Wan',1,2,11, 0, 'PAT-SEED09','P009','Iris Tang',  '9800 0009','rootcanal', 'Root Canal',           30,'confirmed','Root canal treatment'),
+    // ── Shau Kei Wan ── Thu: Dr Agassi Kwok only ───────────────────────────────
+    appt('SEED-S06','shaukeiwan','Shau Kei Wan',2,3,14, 0, 'PAT-SEED07','P007','Grace Tsang','9800 0007','whitening', 'Teeth Whitening',      30,'confirmed','Whitening treatment'),
+    appt('SEED-S07','shaukeiwan','Shau Kei Wan',2,3,15,30, null,'','Stella Chan','6100 0037','consult',   'New Patient Consult',  30,'confirmed','New patient walk-in'),
+    // ── Shau Kei Wan ── Fri: Dr Samuel Chan only ───────────────────────────────
+    appt('SEED-S08','shaukeiwan','Shau Kei Wan',1,4, 9, 0, 'PAT-SEED09','P009','Iris Tang',  '9800 0009','checkup',   'Check-up & Cleaning',  30,'completed','Annual check'),
+    appt('SEED-S09','shaukeiwan','Shau Kei Wan',1,4,10,30, null,'','Ming Lau',   '6100 0038','consult',   'New Patient Consult',  30,'confirmed','New patient referral'),
   ];
 
   saveAppointments(list);
-  localStorage.setItem('clinic_seeded_v6', '1');
+  localStorage.setItem('clinic_seeded_v7', '1');
 }

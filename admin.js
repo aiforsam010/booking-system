@@ -161,7 +161,6 @@ function renderClinicCalendar(clinicId) {
     return d;
   });
 
-  // 15-min slots covering all doctors' hours
   const startH = Math.min(...DOCTORS.map(d => d.start));
   const endH   = Math.max(...DOCTORS.map(d => d.end));
   const slots  = [];
@@ -175,16 +174,24 @@ function renderClinicCalendar(clinicId) {
   const allWeekAppts = getAppointments().filter(a =>
     a.date >= weekStartStr && a.date < weekEndStr && a.clinic === clinicId);
 
-  // Active (confirmed/completed) go in the main grid columns
   const appts = allWeekAppts.filter(a => a.status !== 'cancelled' && a.status !== 'rescheduled');
 
-  // Cancelled/rescheduled stay at original date in the 3rd column
   const sideByDate = {};
   allWeekAppts
     .filter(a => a.status === 'cancelled' || a.status === 'rescheduled')
     .forEach(a => { (sideByDate[a.date] = sideByDate[a.date] || []).push(a); });
 
-  // grid[doctorId][dateStr][slotLabel] = { appt, rowspan } | 'skip' | null
+  // Per-day: which doctors are visible, whether the side column is needed
+  const dayMeta = {};
+  days.forEach(d => {
+    const ds = d.toISOString().split('T')[0];
+    const visibleDocs = DOCTORS.filter(doc => appts.some(a => a.doctorId === doc.id && a.date === ds));
+    const hasSide     = (sideByDate[ds] || []).length > 0;
+    const numCols     = Math.max(1, visibleDocs.length) + (hasSide ? 1 : 0);
+    dayMeta[ds] = { visibleDocs, hasSide, numCols };
+  });
+
+  // Build appointment grid for all doctors (filtered per day at render time)
   const grid = {};
   DOCTORS.forEach(doc => {
     grid[doc.id] = {};
@@ -192,7 +199,6 @@ function renderClinicCalendar(clinicId) {
       const ds = day.toISOString().split('T')[0];
       grid[doc.id][ds] = {};
       slots.forEach(s => { grid[doc.id][ds][s] = null; });
-
       appts.filter(a => a.doctorId === doc.id && a.date === ds).forEach(appt => {
         const dur    = appt.duration || APPOINTMENT_TYPES.find(t => t.id === appt.typeId)?.duration || 30;
         const span   = Math.max(1, Math.ceil(dur / 15));
@@ -218,13 +224,10 @@ function renderClinicCalendar(clinicId) {
       `${days[4].getDate()} ${MONTHS[days[4].getMonth()]} ${days[4].getFullYear()}`;
   }
 
-  // Sync scale slider in the active pane
   const pctLabel = document.getElementById(`cal-scale-pct-${clinicId}`);
   if (pctLabel) pctLabel.textContent = calSize + '%';
   const slider = document.querySelector(`#tab-appts-${clinicId} .cal-scale-slider`);
   if (slider) slider.value = calSize;
-
-  const colsPerDay = DOCTORS.length + 1; // +1 for the cancelled/rescheduled column
 
   const html = `
     <table class="week-table" style="--cal-scale:${calSize/100}">
@@ -233,29 +236,29 @@ function renderClinicCalendar(clinicId) {
           <th class="wt-corner" rowspan="2"></th>
           ${days.map(d => {
             const ds = d.toISOString().split('T')[0];
-            return `<th class="wt-day-hdr${ds === todayStr ? ' wt-today-col' : ''}"
-                        colspan="${colsPerDay}">
+            return `<th class="wt-day-hdr${ds === todayStr ? ' wt-today-col' : ''}" colspan="${dayMeta[ds].numCols}">
               <div class="wt-day-name">${DAYNAMES[d.getDay()]}</div>
-              <div class="wt-day-num${ds === todayStr ? ' wt-today-num' : ''}">
-                ${d.getDate()} ${MONTHS[d.getMonth()]}
-              </div>
+              <div class="wt-day-num${ds === todayStr ? ' wt-today-num' : ''}">${d.getDate()} ${MONTHS[d.getMonth()]}</div>
             </th>`;
           }).join('')}
         </tr>
         <tr class="wt-row-docs">
           ${days.map(d => {
             const ds = d.toISOString().split('T')[0];
-            const docHeaders = DOCTORS.map(doc => {
-              const color = getAvatarColor(doc.name);
-              return `<th class="wt-doc-hdr${ds === todayStr ? ' wt-today-col' : ''}">
-                <span class="wt-doc-dot" style="background:${color}"></span>
-                ${doc.name.replace('Dr. ', '')}
-              </th>`;
-            }).join('');
-            const sideHeader = `<th class="wt-doc-hdr wt-side-hdr${ds === todayStr ? ' wt-today-col' : ''}">
-              Cancelled / Rescheduled
-            </th>`;
-            return docHeaders + sideHeader;
+            const { visibleDocs, hasSide } = dayMeta[ds];
+            const isToday = ds === todayStr;
+            const docHdrs = visibleDocs.length === 0
+              ? `<th class="wt-doc-hdr${isToday ? ' wt-today-col' : ''}"></th>`
+              : visibleDocs.map(doc => {
+                  const color = getAvatarColor(doc.name);
+                  return `<th class="wt-doc-hdr${isToday ? ' wt-today-col' : ''}">
+                    <span class="wt-doc-dot" style="background:${color}"></span>${doc.name.replace('Dr. ', '')}
+                  </th>`;
+                }).join('');
+            const sideHdr = hasSide
+              ? `<th class="wt-doc-hdr wt-side-hdr${isToday ? ' wt-today-col' : ''}">Cancelled / Rescheduled</th>`
+              : '';
+            return docHdrs + sideHdr;
           }).join('')}
         </tr>
       </thead>
@@ -267,51 +270,55 @@ function renderClinicCalendar(clinicId) {
             <td class="wt-time-cell">${isHour ? slot : (si % 4 === 2 ? '<span class="half-mark">·</span>' : '')}</td>
             ${days.map(d => {
               const ds = d.toISOString().split('T')[0];
+              const { visibleDocs, hasSide } = dayMeta[ds];
+              const isToday = ds === todayStr;
 
-              // Doctor columns
-              const docCells = DOCTORS.map(doc => {
-                const cell = grid[doc.id][ds][slot];
-                if (cell === 'skip') return '';
-
-                const isWorking = doc.days.includes(d.getDay());
-                const isLunch   = isWorking && slotH >= doc.lunch[0] && slotH < doc.lunch[1];
-
-                if (!cell) {
-                  const cls = !isWorking ? 'wt-off' : isLunch ? 'wt-lunch' : '';
-                  return `<td class="wt-cell ${cls}"></td>`;
-                }
-
-                const isNewPt = !cell.appt.patientId;
-                const color   = isNewPt ? '#ea580c' : getAvatarColor(doc.name);
-                return `<td class="wt-cell wt-appt-cell" rowspan="${cell.rowspan}">
-                  <div class="wt-appt${isNewPt ? ' wt-new-patient' : ''}" style="border-left:3px solid ${color};background:${color}18;">
-                    <div class="wt-appt-name">
-                      ${isNewPt ? '<span class="wt-new-badge">NEW</span>' : ''}${cell.appt.patientName}
-                    </div>
-                    ${cell.rowspan >= 2 ? `<div class="wt-appt-type">${cell.appt.typeName}</div>` : ''}
-                    ${cell.appt.status === 'confirmed' ? `
-                      <div class="wt-appt-btns">
+              // Doctor columns — only visible ones
+              let docCells = '';
+              if (visibleDocs.length === 0) {
+                docCells = si === 0 ? `<td class="wt-cell${isToday ? ' wt-today-col' : ''}" rowspan="${slots.length}"></td>` : '';
+              } else {
+                docCells = visibleDocs.map(doc => {
+                  const cell = grid[doc.id][ds][slot];
+                  if (cell === 'skip') return '';
+                  const isWorking = doc.days.includes(d.getDay());
+                  const isLunch   = isWorking && slotH >= doc.lunch[0] && slotH < doc.lunch[1];
+                  if (!cell) {
+                    const cls = !isWorking ? 'wt-off' : isLunch ? 'wt-lunch' : '';
+                    return `<td class="wt-cell${cls ? ' '+cls : ''}${isToday ? ' wt-today-col' : ''}"></td>`;
+                  }
+                  const isNewPt = !cell.appt.patientId;
+                  const color   = isNewPt ? '#ea580c' : getAvatarColor(doc.name);
+                  return `<td class="wt-cell wt-appt-cell${isToday ? ' wt-today-col' : ''}" rowspan="${cell.rowspan}">
+                    <div class="wt-appt${isNewPt ? ' wt-new-patient' : ''}" style="border-left:3px solid ${color};background:${color}18;">
+                      <div class="wt-appt-name">${isNewPt ? '<span class="wt-new-badge">NEW</span>' : ''}${cell.appt.patientName}</div>
+                      ${cell.rowspan >= 2 ? `<div class="wt-appt-type">${cell.appt.typeName}</div>` : ''}
+                      ${cell.appt.status === 'confirmed' ? `<div class="wt-appt-btns">
                         <button class="btn-xs btn-outline-sm" onclick="openRescheduleModal('${cell.appt.id}','${clinicId}')">Reschedule</button>
-                        <button class="btn-xs btn-danger"     onclick="setStatus('${cell.appt.id}','cancelled')">Cancel</button>
+                        <button class="btn-xs btn-danger" onclick="setStatus('${cell.appt.id}','cancelled')">Cancel</button>
                       </div>` : ''}
-                    ${cell.appt.status === 'completed' ? `<span class="status-chip sc-completed" style="font-size:10px;">done</span>` : ''}
-                  </div>
-                </td>`;
-              }).join('');
+                      ${cell.appt.status === 'completed' ? `<span class="status-chip sc-completed" style="font-size:10px;">done</span>` : ''}
+                    </div>
+                  </td>`;
+                }).join('');
+              }
 
-              // 3rd column: cancelled / rescheduled (only first slot, spans all rows)
-              const sideCell = si === 0 ? (() => {
-                const list = sideByDate[ds] || [];
-                const items = list.map(a => {
-                  const isRs = a.status === 'rescheduled';
-                  return `<div class="wt-side-appt ${isRs ? 'wt-side-rescheduled' : 'wt-side-cancelled'}">
-                    <span class="wt-side-badge">${isRs ? 'Rescheduled' : 'Cancelled'}</span>
-                    <div class="wt-side-name">${a.patientName}</div>
-                    <div class="wt-side-meta">${a.time} · ${a.typeName}</div>
+              // Side column — only if day has cancelled/rescheduled, rendered once at si===0
+              let sideCell = '';
+              if (hasSide && si === 0) {
+                const items = (sideByDate[ds] || []).map(a => {
+                  const isRs   = a.status === 'rescheduled';
+                  const badgeCls = isRs ? 'wt-side-rescheduled' : 'wt-side-cancelled';
+                  return `<div class="wt-appt wt-appt-faded">
+                    <div class="wt-appt-name">
+                      <span class="wt-side-badge ${badgeCls}">${isRs ? 'Rescheduled' : 'Cancelled'}</span>
+                      ${a.patientName}
+                    </div>
+                    <div class="wt-appt-type">${a.time} · ${a.typeName}</div>
                   </div>`;
                 }).join('');
-                return `<td class="wt-cell wt-side-col${ds === todayStr ? ' wt-today-col' : ''}" rowspan="${slots.length}">${items}</td>`;
-              })() : '';
+                sideCell = `<td class="wt-cell wt-side-col${isToday ? ' wt-today-col' : ''}" rowspan="${slots.length}">${items}</td>`;
+              }
 
               return docCells + sideCell;
             }).join('')}
