@@ -145,49 +145,85 @@
 
         <!-- ── Appointments — Central ── -->
         <div id="tab-appts-central" class="tab-pane" style="display:none">
-          <div class="admin-header">
-            <h1>🏙️ Central — Appointments</h1>
-          </div>
-          <div class="week-nav">
-            <button class="btn btn-outline btn-sm" onclick="prevWeek('central')">← Prev</button>
-            <span id="week-label-central" class="week-label"></span>
-            <button class="btn btn-outline btn-sm" onclick="nextWeek('central')">Next →</button>
-            <button class="btn btn-ghost btn-sm" onclick="goToToday('central')">Today</button>
-          </div>
-          <div class="cal-wrapper">
-            <div id="cal-container-central"></div>
+          <div class="appt-page-layout">
+            <div class="appt-page-main">
+              <div class="admin-header">
+                <h1>🏙️ Central — Appointments</h1>
+              </div>
+              <div class="week-nav">
+                <button class="btn btn-outline btn-sm" onclick="prevWeek('central')">← Prev</button>
+                <span id="week-label-central" class="week-label"></span>
+                <button class="btn btn-outline btn-sm" onclick="nextWeek('central')">Next →</button>
+                <button class="btn btn-ghost btn-sm" onclick="goToToday('central')">Today</button>
+                <div class="size-btns">
+                  <button class="size-btn" data-size="compact" onclick="setCalSize('compact')">Compact</button>
+                  <button class="size-btn active" data-size="normal"  onclick="setCalSize('normal')">Normal</button>
+                  <button class="size-btn" data-size="wide"    onclick="setCalSize('wide')">Wide</button>
+                </div>
+              </div>
+              <div class="cal-wrapper">
+                <div id="cal-container-central"></div>
+              </div>
+            </div>
+            <div class="appt-sidebar">
+              <div id="mini-cal-central"></div>
+            </div>
           </div>
         </div>
 
         <!-- ── Appointments — Taikoo ── -->
         <div id="tab-appts-taikoo" class="tab-pane" style="display:none">
-          <div class="admin-header">
-            <h1>🌊 Taikoo — Appointments</h1>
-          </div>
-          <div class="week-nav">
-            <button class="btn btn-outline btn-sm" onclick="prevWeek('taikoo')">← Prev</button>
-            <span id="week-label-taikoo" class="week-label"></span>
-            <button class="btn btn-outline btn-sm" onclick="nextWeek('taikoo')">Next →</button>
-            <button class="btn btn-ghost btn-sm" onclick="goToToday('taikoo')">Today</button>
-          </div>
-          <div class="cal-wrapper">
-            <div id="cal-container-taikoo"></div>
+          <div class="appt-page-layout">
+            <div class="appt-page-main">
+              <div class="admin-header">
+                <h1>🌊 Taikoo — Appointments</h1>
+              </div>
+              <div class="week-nav">
+                <button class="btn btn-outline btn-sm" onclick="prevWeek('taikoo')">← Prev</button>
+                <span id="week-label-taikoo" class="week-label"></span>
+                <button class="btn btn-outline btn-sm" onclick="nextWeek('taikoo')">Next →</button>
+                <button class="btn btn-ghost btn-sm" onclick="goToToday('taikoo')">Today</button>
+                <div class="size-btns">
+                  <button class="size-btn" data-size="compact" onclick="setCalSize('compact')">Compact</button>
+                  <button class="size-btn active" data-size="normal"  onclick="setCalSize('normal')">Normal</button>
+                  <button class="size-btn" data-size="wide"    onclick="setCalSize('wide')">Wide</button>
+                </div>
+              </div>
+              <div class="cal-wrapper">
+                <div id="cal-container-taikoo"></div>
+              </div>
+            </div>
+            <div class="appt-sidebar">
+              <div id="mini-cal-taikoo"></div>
+            </div>
           </div>
         </div>
 
         <!-- ── Appointments — Shau Kei Wan ── -->
         <div id="tab-appts-shaukeiwan" class="tab-pane" style="display:none">
-          <div class="admin-header">
-            <h1>⚓ Shau Kei Wan — Appointments</h1>
-          </div>
-          <div class="week-nav">
-            <button class="btn btn-outline btn-sm" onclick="prevWeek('shaukeiwan')">← Prev</button>
-            <span id="week-label-shaukeiwan" class="week-label"></span>
-            <button class="btn btn-outline btn-sm" onclick="nextWeek('shaukeiwan')">Next →</button>
-            <button class="btn btn-ghost btn-sm" onclick="goToToday('shaukeiwan')">Today</button>
-          </div>
-          <div class="cal-wrapper">
-            <div id="cal-container-shaukeiwan"></div>
+          <div class="appt-page-layout">
+            <div class="appt-page-main">
+              <div class="admin-header">
+                <h1>⚓ Shau Kei Wan — Appointments</h1>
+              </div>
+              <div class="week-nav">
+                <button class="btn btn-outline btn-sm" onclick="prevWeek('shaukeiwan')">← Prev</button>
+                <span id="week-label-shaukeiwan" class="week-label"></span>
+                <button class="btn btn-outline btn-sm" onclick="nextWeek('shaukeiwan')">Next →</button>
+                <button class="btn btn-ghost btn-sm" onclick="goToToday('shaukeiwan')">Today</button>
+                <div class="size-btns">
+                  <button class="size-btn" data-size="compact" onclick="setCalSize('compact')">Compact</button>
+                  <button class="size-btn active" data-size="normal"  onclick="setCalSize('normal')">Normal</button>
+                  <button class="size-btn" data-size="wide"    onclick="setCalSize('wide')">Wide</button>
+                </div>
+              </div>
+              <div class="cal-wrapper">
+                <div id="cal-container-shaukeiwan"></div>
+              </div>
+            </div>
+            <div class="appt-sidebar">
+              <div id="mini-cal-shaukeiwan"></div>
+            </div>
           </div>
         </div>
 

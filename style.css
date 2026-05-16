@@ -350,12 +350,39 @@ a { color: inherit; text-decoration: none; }
    WEEKLY CALENDAR
    ─────────────────────────────────────────────────────────────────────────── */
 
+/* ── Appointment page two-column layout ────────────────────────────────────── */
+.appt-page-layout { display: flex; gap: 20px; align-items: flex-start; }
+.appt-page-main   { flex: 1; min-width: 0; }
+.appt-sidebar     { width: 210px; flex-shrink: 0; position: sticky; top: 24px; align-self: flex-start; }
+
+/* ── Size toggle buttons ───────────────────────────────────────────────────── */
+.size-btns { display: flex; gap: 2px; margin-left: auto; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 2px; }
+.size-btn  { padding: 4px 10px; border-radius: 5px; font-size: 12px; font-weight: 600; color: var(--text-muted); background: none; transition: all .15s; }
+.size-btn.active { background: var(--white); color: var(--primary); box-shadow: var(--shadow); }
+.size-btn:hover:not(.active) { color: var(--text); }
+
 .week-nav { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
 .week-label { font-size: 16px; font-weight: 700; flex: 1; text-align: center; }
 
 .cal-wrapper { overflow: auto; max-height: calc(100vh - 230px); border: 1px solid var(--border); border-radius: var(--radius); }
 
 .week-table { border-collapse: collapse; white-space: nowrap; width: 100%; }
+
+/* ── Calendar size variants ────────────────────────────────────────────────── */
+.cal-size-compact .wt-slot-row,
+.cal-size-compact .wt-hour-row { height: 14px; }
+.cal-size-compact .wt-day-hdr  { min-width: 80px; padding: 4px 2px; }
+.cal-size-compact .wt-doc-hdr  { min-width: 80px; font-size: 10px; }
+.cal-size-compact .wt-appt-name { font-size: 9px; }
+.cal-size-compact .wt-appt-type { display: none; }
+.cal-size-compact .wt-appt-btns { display: none; }
+
+.cal-size-wide .wt-slot-row,
+.cal-size-wide .wt-hour-row { height: 34px; }
+.cal-size-wide .wt-day-hdr  { min-width: 160px; padding: 10px 4px; }
+.cal-size-wide .wt-doc-hdr  { min-width: 160px; font-size: 12px; }
+.cal-size-wide .wt-appt-name { font-size: 12px; }
+.cal-size-wide .wt-appt-type { font-size: 11px; }
 
 .wt-corner { position: sticky; top: 0; left: 0; z-index: 40; background: var(--bg); width: 62px; min-width: 62px; border: 1px solid var(--border); }
 
@@ -384,6 +411,25 @@ a { color: inherit; text-decoration: none; }
 .wt-appt-name { font-size: 11px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.4; }
 .wt-appt-type { font-size: 10px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .wt-appt-btns { display: flex; gap: 3px; margin-top: 3px; flex-wrap: wrap; }
+
+/* ── Mini calendar ─────────────────────────────────────────────────────────── */
+.mini-cal { background: var(--white); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; box-shadow: var(--shadow); }
+.mc-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.mc-title  { font-size: 13px; font-weight: 700; color: var(--text); }
+.mc-nav    { background: none; border: none; cursor: pointer; font-size: 18px; color: var(--text-muted); padding: 0 4px; line-height: 1; border-radius: 4px; }
+.mc-nav:hover { background: var(--bg); color: var(--text); }
+.mc-grid   { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.mc-wday   { text-align: center; font-size: 10px; font-weight: 700; color: var(--text-muted); padding: 2px 0 4px; }
+.mc-day    { text-align: center; font-size: 12px; padding: 4px 2px; border-radius: 4px; cursor: pointer; color: var(--text); line-height: 1.4; }
+.mc-day:hover      { background: var(--primary-light); color: var(--primary); }
+.mc-empty          { cursor: default; }
+.mc-empty:hover    { background: none; }
+.mc-weekend        { color: var(--text-muted); }
+.mc-today          { font-weight: 700; color: var(--primary); }
+.mc-in-week        { background: var(--primary-light); color: var(--primary); font-weight: 600; border-radius: 0; }
+.mc-in-week:first-child,
+.mc-in-week.mc-week-start { border-radius: 4px 0 0 4px; }
+.mc-in-week.mc-week-end   { border-radius: 0 4px 4px 0; }
 
 /* ────────────────────────────────────────────────────────────────────────────
    PATIENT MODE TABS (booking step 4)

@@ -1,9 +1,17 @@
 const ADMIN_PASS = '1';
 let currentTab = 'dashboard';
+let calSize = 'normal';
+
 const weekStarts = {
   central:    getMonday(new Date()),
   taikoo:     getMonday(new Date()),
   shaukeiwan: getMonday(new Date()),
+};
+
+const miniCalMonths = {
+  central:    { year: new Date().getFullYear(), month: new Date().getMonth() },
+  taikoo:     { year: new Date().getFullYear(), month: new Date().getMonth() },
+  shaukeiwan: { year: new Date().getFullYear(), month: new Date().getMonth() },
 };
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
@@ -199,8 +207,13 @@ function renderClinicCalendar(clinicId) {
       `${days[4].getDate()} ${MONTHS[days[4].getMonth()]} ${days[4].getFullYear()}`;
   }
 
+  // Sync size buttons in the active pane
+  document.querySelectorAll(`#tab-appts-${clinicId} .size-btn`).forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.size === calSize);
+  });
+
   const html = `
-    <table class="week-table">
+    <table class="week-table cal-size-${calSize}">
       <thead>
         <tr class="wt-row-days">
           <th class="wt-corner" rowspan="2"></th>
@@ -270,6 +283,8 @@ function renderClinicCalendar(clinicId) {
 
   const container = document.getElementById('cal-container-' + clinicId);
   if (container) container.innerHTML = html;
+
+  renderMiniCal(clinicId);
 }
 
 function prevWeek(clinicId) {
@@ -282,6 +297,87 @@ function nextWeek(clinicId) {
 }
 function goToToday(clinicId) {
   weekStarts[clinicId] = getMonday(new Date());
+  renderClinicCalendar(clinicId);
+}
+
+// ── Calendar sizing ───────────────────────────────────────────────────────────
+
+function setCalSize(size) {
+  calSize = size;
+  if (currentTab.startsWith('appts-')) {
+    renderClinicCalendar(currentTab.replace('appts-', ''));
+  }
+}
+
+// ── Mini calendar ─────────────────────────────────────────────────────────────
+
+function renderMiniCal(clinicId) {
+  const el = document.getElementById('mini-cal-' + clinicId);
+  if (!el) return;
+
+  const { year, month } = miniCalMonths[clinicId];
+  const ws  = weekStarts[clinicId];
+  const we  = new Date(ws.getTime() + 4 * 86400000);
+  const MONTHS   = ['January','February','March','April','May','June',
+                    'July','August','September','October','November','December'];
+  const DAYNAMES = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+  const today    = new Date(); today.setHours(0,0,0,0);
+
+  const firstDay    = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  let days = DAYNAMES.map(d => `<div class="mc-wday">${d}</div>`).join('');
+  for (let i = 0; i < firstDay; i++) days += '<div class="mc-day mc-empty"></div>';
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const date = new Date(year, month, d); date.setHours(0,0,0,0);
+    const ds   = date.toISOString().split('T')[0];
+    const inWeek    = date >= ws && date <= we;
+    const isToday   = date.getTime() === today.getTime();
+    const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+    const isStart   = date.getTime() === ws.getTime();
+    const isEnd     = date.getTime() === we.getTime();
+    let cls = 'mc-day';
+    if (inWeek)   cls += ' mc-in-week';
+    if (isStart)  cls += ' mc-week-start';
+    if (isEnd)    cls += ' mc-week-end';
+    if (isToday)  cls += ' mc-today';
+    if (isWeekend) cls += ' mc-weekend';
+    days += `<div class="${cls}" onclick="jumpToWeek('${clinicId}','${ds}')">${d}</div>`;
+  }
+
+  el.innerHTML = `
+    <div class="mini-cal">
+      <div class="mc-header">
+        <button class="mc-nav" onclick="miniCalPrev('${clinicId}')">&#8249;</button>
+        <span class="mc-title">${MONTHS[month]} ${year}</span>
+        <button class="mc-nav" onclick="miniCalNext('${clinicId}')">&#8250;</button>
+      </div>
+      <div class="mc-grid">${days}</div>
+    </div>`;
+}
+
+function miniCalPrev(clinicId) {
+  const { year, month } = miniCalMonths[clinicId];
+  miniCalMonths[clinicId] = month === 0
+    ? { year: year - 1, month: 11 }
+    : { year, month: month - 1 };
+  renderMiniCal(clinicId);
+}
+
+function miniCalNext(clinicId) {
+  const { year, month } = miniCalMonths[clinicId];
+  miniCalMonths[clinicId] = month === 11
+    ? { year: year + 1, month: 0 }
+    : { year, month: month + 1 };
+  renderMiniCal(clinicId);
+}
+
+function jumpToWeek(clinicId, ds) {
+  const [y, m, d] = ds.split('-').map(Number);
+  weekStarts[clinicId] = getMonday(new Date(y, m - 1, d));
+  // Sync mini-cal month to show the jumped-to month
+  miniCalMonths[clinicId] = { year: weekStarts[clinicId].getFullYear(), month: weekStarts[clinicId].getMonth() };
   renderClinicCalendar(clinicId);
 }
 
