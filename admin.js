@@ -1,6 +1,6 @@
 const ADMIN_PASS = '1';
 let currentTab = 'dashboard';
-let calSize = 'normal';
+let calSize = 100;
 
 const weekStarts = {
   central:    getMonday(new Date()),
@@ -53,6 +53,7 @@ function showApp() {
 
 function showTab(tab) {
   currentTab = tab;
+  closeMobileSidebar();
   document.querySelectorAll('.nav-item[data-tab]').forEach(el =>
     el.classList.toggle('active', el.dataset.tab === tab));
   document.querySelectorAll('.tab-pane').forEach(el =>
@@ -170,9 +171,18 @@ function renderClinicCalendar(clinicId) {
 
   const weekStartStr = days[0].toISOString().split('T')[0];
   const weekEndStr   = new Date(days[4].getTime() + 86400000).toISOString().split('T')[0];
-  const appts = getAppointments().filter(a =>
-    a.date >= weekStartStr && a.date < weekEndStr &&
-    a.status !== 'cancelled' && a.clinic === clinicId);
+
+  const allWeekAppts = getAppointments().filter(a =>
+    a.date >= weekStartStr && a.date < weekEndStr && a.clinic === clinicId);
+
+  // Active (confirmed/completed) go in the main grid columns
+  const appts = allWeekAppts.filter(a => a.status !== 'cancelled' && a.status !== 'rescheduled');
+
+  // Cancelled/rescheduled stay at original date in the 3rd column
+  const sideByDate = {};
+  allWeekAppts
+    .filter(a => a.status === 'cancelled' || a.status === 'rescheduled')
+    .forEach(a => { (sideByDate[a.date] = sideByDate[a.date] || []).push(a); });
 
   // grid[doctorId][dateStr][slotLabel] = { appt, rowspan } | 'skip' | null
   const grid = {};
@@ -208,20 +218,23 @@ function renderClinicCalendar(clinicId) {
       `${days[4].getDate()} ${MONTHS[days[4].getMonth()]} ${days[4].getFullYear()}`;
   }
 
-  // Sync size buttons in the active pane
-  document.querySelectorAll(`#tab-appts-${clinicId} .size-btn`).forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.size === calSize);
-  });
+  // Sync scale slider in the active pane
+  const pctLabel = document.getElementById(`cal-scale-pct-${clinicId}`);
+  if (pctLabel) pctLabel.textContent = calSize + '%';
+  const slider = document.querySelector(`#tab-appts-${clinicId} .cal-scale-slider`);
+  if (slider) slider.value = calSize;
+
+  const colsPerDay = DOCTORS.length + 1; // +1 for the cancelled/rescheduled column
 
   const html = `
-    <table class="week-table cal-size-${calSize}">
+    <table class="week-table" style="--cal-scale:${calSize/100}">
       <thead>
         <tr class="wt-row-days">
           <th class="wt-corner" rowspan="2"></th>
           ${days.map(d => {
             const ds = d.toISOString().split('T')[0];
             return `<th class="wt-day-hdr${ds === todayStr ? ' wt-today-col' : ''}"
-                        colspan="${DOCTORS.length}">
+                        colspan="${colsPerDay}">
               <div class="wt-day-name">${DAYNAMES[d.getDay()]}</div>
               <div class="wt-day-num${ds === todayStr ? ' wt-today-num' : ''}">
                 ${d.getDate()} ${MONTHS[d.getMonth()]}
@@ -232,13 +245,17 @@ function renderClinicCalendar(clinicId) {
         <tr class="wt-row-docs">
           ${days.map(d => {
             const ds = d.toISOString().split('T')[0];
-            return DOCTORS.map(doc => {
+            const docHeaders = DOCTORS.map(doc => {
               const color = getAvatarColor(doc.name);
               return `<th class="wt-doc-hdr${ds === todayStr ? ' wt-today-col' : ''}">
                 <span class="wt-doc-dot" style="background:${color}"></span>
                 ${doc.name.replace('Dr. ', '')}
               </th>`;
             }).join('');
+            const sideHeader = `<th class="wt-doc-hdr wt-side-hdr${ds === todayStr ? ' wt-today-col' : ''}">
+              Cancelled / Rescheduled
+            </th>`;
+            return docHeaders + sideHeader;
           }).join('')}
         </tr>
       </thead>
@@ -250,7 +267,9 @@ function renderClinicCalendar(clinicId) {
             <td class="wt-time-cell">${isHour ? slot : (si % 4 === 2 ? '<span class="half-mark">·</span>' : '')}</td>
             ${days.map(d => {
               const ds = d.toISOString().split('T')[0];
-              return DOCTORS.map(doc => {
+
+              // Doctor columns
+              const docCells = DOCTORS.map(doc => {
                 const cell = grid[doc.id][ds][slot];
                 if (cell === 'skip') return '';
 
@@ -272,13 +291,29 @@ function renderClinicCalendar(clinicId) {
                     ${cell.rowspan >= 2 ? `<div class="wt-appt-type">${cell.appt.typeName}</div>` : ''}
                     ${cell.appt.status === 'confirmed' ? `
                       <div class="wt-appt-btns">
-                        <button class="btn-xs btn-success" onclick="setStatus('${cell.appt.id}','completed')">Done</button>
-                        <button class="btn-xs btn-danger"  onclick="setStatus('${cell.appt.id}','cancelled')">Cancel</button>
+                        <button class="btn-xs btn-outline-sm" onclick="openRescheduleModal('${cell.appt.id}','${clinicId}')">Reschedule</button>
+                        <button class="btn-xs btn-danger"     onclick="setStatus('${cell.appt.id}','cancelled')">Cancel</button>
                       </div>` : ''}
                     ${cell.appt.status === 'completed' ? `<span class="status-chip sc-completed" style="font-size:10px;">done</span>` : ''}
                   </div>
                 </td>`;
               }).join('');
+
+              // 3rd column: cancelled / rescheduled (only first slot, spans all rows)
+              const sideCell = si === 0 ? (() => {
+                const list = sideByDate[ds] || [];
+                const items = list.map(a => {
+                  const isRs = a.status === 'rescheduled';
+                  return `<div class="wt-side-appt ${isRs ? 'wt-side-rescheduled' : 'wt-side-cancelled'}">
+                    <span class="wt-side-badge">${isRs ? 'Rescheduled' : 'Cancelled'}</span>
+                    <div class="wt-side-name">${a.patientName}</div>
+                    <div class="wt-side-meta">${a.time} · ${a.typeName}</div>
+                  </div>`;
+                }).join('');
+                return `<td class="wt-cell wt-side-col${ds === todayStr ? ' wt-today-col' : ''}" rowspan="${slots.length}">${items}</td>`;
+              })() : '';
+
+              return docCells + sideCell;
             }).join('')}
           </tr>`;
         }).join('')}
@@ -307,7 +342,7 @@ function goToToday(clinicId) {
 // ── Calendar sizing ───────────────────────────────────────────────────────────
 
 function setCalSize(size) {
-  calSize = size;
+  calSize = parseInt(size, 10);
   if (currentTab.startsWith('appts-')) {
     renderClinicCalendar(currentTab.replace('appts-', ''));
   }
@@ -383,6 +418,229 @@ function jumpToWeek(clinicId, ds) {
   // Sync mini-cal month to show the jumped-to month
   miniCalMonths[clinicId] = { year: weekStarts[clinicId].getFullYear(), month: weekStarts[clinicId].getMonth() };
   renderClinicCalendar(clinicId);
+}
+
+// ── Reschedule modal ─────────────────────────────────────────────────────────
+
+const rsState = {
+  apptId: null, clinicId: null, original: null,
+  mode: null,                    // 'keep' | 'change'
+  doctorId: null, typeId: null, typeName: null, duration: null,
+  date: null, time: null,
+  calYear: new Date().getFullYear(), calMonth: new Date().getMonth(),
+};
+
+function openRescheduleModal(apptId, clinicId) {
+  const original = getAppointments().find(a => a.id === apptId);
+  if (!original) return;
+  Object.assign(rsState, {
+    apptId, clinicId, original, mode: null,
+    doctorId: null, typeId: null, typeName: null, duration: null,
+    date: null, time: null,
+    calYear: new Date().getFullYear(), calMonth: new Date().getMonth(),
+  });
+  document.getElementById('reschedule-modal').style.display = 'flex';
+  rsRender();
+}
+
+function closeRescheduleModal() {
+  document.getElementById('reschedule-modal').style.display = 'none';
+}
+
+function rsRender() {
+  const card = document.getElementById('rs-card');
+  const a    = rsState.original;
+
+  const summaryHTML = `
+    <div class="rs-summary">
+      <div class="rs-sum-row"><span class="rs-sum-label">Patient</span><span>${a.patientName}</span></div>
+      <div class="rs-sum-row"><span class="rs-sum-label">Original date</span><span>${formatDate(a.date)} at ${a.time}</span></div>
+      <div class="rs-sum-row"><span class="rs-sum-label">Dentist</span><span>${a.doctorName}</span></div>
+      <div class="rs-sum-row"><span class="rs-sum-label">Treatment</span><span>${a.typeName} · ${a.duration || 30} min</span></div>
+    </div>`;
+
+  // ── Step 0: mode selection ────────────────────────────────────────────────
+  if (!rsState.mode) {
+    card.innerHTML = `
+      <div class="modal-header">
+        <h2>Reschedule Appointment</h2>
+        <button class="modal-close" onclick="closeRescheduleModal()">×</button>
+      </div>
+      ${summaryHTML}
+      <p class="rs-section-title">How would you like to reschedule?</p>
+      <div class="rs-mode-grid">
+        <button class="rs-mode-btn" onclick="rsSelectMode('keep')">
+          <div class="rs-mode-icon">📋</div>
+          <div class="rs-mode-name">Keep existing details</div>
+          <div class="rs-mode-desc">Same dentist, treatment &amp; duration — pick a new date and time only</div>
+        </button>
+        <button class="rs-mode-btn" onclick="rsSelectMode('change')">
+          <div class="rs-mode-icon">✏️</div>
+          <div class="rs-mode-name">Change booking details</div>
+          <div class="rs-mode-desc">Choose a different dentist, treatment, or duration</div>
+        </button>
+      </div>`;
+    return;
+  }
+
+  // ── Details form (change mode only) ──────────────────────────────────────
+  const dur = rsState.duration;
+  const customActive = typeof dur === 'number' && ![5,15,30].includes(dur);
+
+  let detailsHTML = '';
+  if (rsState.mode === 'change') {
+    detailsHTML = `
+      <p class="rs-section-title">New booking details</p>
+      <div class="rs-details-form">
+        <div class="rs-field">
+          <label class="rs-label">Dentist</label>
+          <div class="rs-btn-row">
+            ${DOCTORS.map(d => `<button class="rs-opt-btn ${rsState.doctorId === d.id ? 'selected' : ''}"
+                onclick="rsSelectDoctor(${d.id})">${d.name}</button>`).join('')}
+          </div>
+        </div>
+        <div class="rs-field">
+          <label class="rs-label">Treatment</label>
+          <div class="rs-btn-row" style="flex-wrap:wrap;">
+            ${APPOINTMENT_TYPES.map(t => `<button class="rs-opt-btn ${rsState.typeId === t.id ? 'selected' : ''}"
+                onclick="rsSelectType('${t.id}','${t.name}')">${t.name}</button>`).join('')}
+          </div>
+        </div>
+        <div class="rs-field">
+          <label class="rs-label">Duration</label>
+          <div class="rs-btn-row">
+            <button class="rs-opt-btn ${dur === 5 ? 'selected' : ''}"  onclick="rsSelectDuration(5)">5 min</button>
+            <button class="rs-opt-btn ${dur === 15 ? 'selected' : ''}" onclick="rsSelectDuration(15)">15 min</button>
+            <button class="rs-opt-btn ${dur === 30 ? 'selected' : ''}" onclick="rsSelectDuration(30)">30 min</button>
+            <button class="rs-opt-btn ${customActive || dur === 'custom' ? 'selected' : ''}" onclick="rsSelectDuration('custom')">Custom</button>
+            <div style="display:${customActive || dur === 'custom' ? 'flex' : 'none'};align-items:center;gap:6px;margin-top:4px;">
+              <input id="rs-custom-dur" type="number" min="1" max="480" placeholder="min"
+                     class="form-input" style="width:80px;" value="${customActive ? dur : ''}"
+                     oninput="rsApplyCustomDuration(this.value)">
+              <span style="font-size:13px;color:var(--text-muted);">min</span>
+            </div>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  // Resolve active doctor and duration for the calendar
+  const activeDoctorId = rsState.mode === 'keep' ? a.doctorId : (rsState.doctorId || null);
+  const activeDuration  = rsState.mode === 'keep' ? (a.duration || 30) : (typeof dur === 'number' && dur > 0 ? dur : null);
+  const activeDoctor    = activeDoctorId ? getDoctorById(activeDoctorId) : null;
+
+  // ── Month calendar ────────────────────────────────────────────────────────
+  const MONTHS_LONG = ['January','February','March','April','May','June',
+                       'July','August','September','October','November','December'];
+  const today = new Date(); today.setHours(0,0,0,0);
+  const firstDay    = new Date(rsState.calYear, rsState.calMonth, 1).getDay();
+  const daysInMonth = new Date(rsState.calYear, rsState.calMonth + 1, 0).getDate();
+
+  let calDays = ['Su','Mo','Tu','We','Th','Fr','Sa'].map(wd => `<div class="cal-wday">${wd}</div>`).join('');
+  for (let i = 0; i < firstDay; i++) calDays += '<div class="cal-day empty"></div>';
+  for (let d = 1; d <= daysInMonth; d++) {
+    const date  = new Date(rsState.calYear, rsState.calMonth, d); date.setHours(0,0,0,0);
+    const ds    = date.toISOString().split('T')[0];
+    const past  = date < today;
+    const works = activeDoctor ? activeDoctor.days.includes(date.getDay()) : false;
+    const isSel = rsState.date === ds;
+    const isToday = date.getTime() === today.getTime();
+    const cls = ['cal-day', (past || !works || !activeDoctor) ? 'disabled' : 'available',
+                 isSel ? 'selected' : '', isToday ? 'today' : ''].filter(Boolean).join(' ');
+    calDays += `<div class="${cls}" ${!past && works && activeDoctor ? `onclick="rsSelectDate('${ds}')"` : ''}>${d}</div>`;
+  }
+
+  // ── Time slots ────────────────────────────────────────────────────────────
+  let slotsHTML = '<div class="slots-placeholder"><span>📅</span><p>Select a date to see available times</p></div>';
+  if (rsState.date && activeDoctor && activeDuration) {
+    const slots = generateTimeSlots(activeDoctor, rsState.date, activeDuration);
+    slotsHTML = slots.length
+      ? `<h4 class="rs-slots-title">${formatDate(rsState.date)}</h4>
+         <div class="slots-grid">
+           ${slots.map(s => `<button class="slot ${s.available ? '' : 'booked'} ${rsState.time === s.time && s.available ? 'selected' : ''}"
+               ${s.available ? `onclick="rsSelectTime('${s.time}')"` : 'disabled'}>${s.time}</button>`).join('')}
+         </div>`
+      : '<div class="slots-placeholder"><span>🚫</span><p>No slots available for this date</p></div>';
+  }
+
+  const calNotReady = rsState.mode === 'change' && (!rsState.doctorId || !rsState.typeId || !activeDuration || dur === 'custom');
+  const canConfirm  = rsState.date && rsState.time &&
+    (rsState.mode === 'keep' || (rsState.doctorId && rsState.typeId && activeDuration && dur !== 'custom'));
+
+  card.innerHTML = `
+    <div class="modal-header">
+      <div>
+        <h2>Reschedule Appointment</h2>
+        <button class="btn btn-ghost btn-sm" style="font-size:12px;margin-top:2px;" onclick="rsState.mode=null;rsRender()">← Change option</button>
+      </div>
+      <button class="modal-close" onclick="closeRescheduleModal()">×</button>
+    </div>
+    ${summaryHTML}
+    ${detailsHTML}
+    <p class="rs-section-title">New date &amp; time</p>
+    ${calNotReady ? '<p style="color:var(--text-muted);font-size:13px;margin-bottom:16px;">Select a dentist, treatment, and duration above first.</p>' : `
+    <div class="rs-datetime">
+      <div>
+        <div class="cal-nav">
+          <button class="cal-arrow" onclick="rsCalPrev()">&#8249;</button>
+          <span class="cal-title">${MONTHS_LONG[rsState.calMonth]} ${rsState.calYear}</span>
+          <button class="cal-arrow" onclick="rsCalNext()">&#8250;</button>
+        </div>
+        <div class="cal-weekdays">${['Su','Mo','Tu','We','Th','Fr','Sa'].map(wd=>`<div class="cal-wday">${wd}</div>`).join('')}</div>
+        <div class="cal-days">${calDays.replace(/<div class="cal-wday">.*?<\/div>/g,'')}</div>
+      </div>
+      <div class="rs-slots-panel">${slotsHTML}</div>
+    </div>`}
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeRescheduleModal()">Cancel</button>
+      <button class="btn btn-primary" ${canConfirm ? '' : 'disabled'} onclick="rsConfirm()">Confirm Reschedule →</button>
+    </div>`;
+}
+
+function rsSelectMode(mode)         { rsState.mode = mode; rsState.date = null; rsState.time = null; rsRender(); }
+function rsSelectDoctor(id)         { rsState.doctorId = id; rsState.date = null; rsState.time = null; rsRender(); }
+function rsSelectType(id, name)     { rsState.typeId = id; rsState.typeName = name; rsRender(); }
+function rsSelectDuration(val)      { rsState.duration = val; rsState.date = null; rsState.time = null; rsRender(); }
+function rsApplyCustomDuration(val) { const n = parseInt(val,10); rsState.duration = n > 0 ? n : 'custom'; rsState.time = null; rsRender(); }
+function rsCalPrev() {
+  const { calYear, calMonth } = rsState;
+  Object.assign(rsState, calMonth === 0 ? { calYear: calYear - 1, calMonth: 11 } : { calMonth: calMonth - 1 });
+  rsRender();
+}
+function rsCalNext() {
+  const { calYear, calMonth } = rsState;
+  Object.assign(rsState, calMonth === 11 ? { calYear: calYear + 1, calMonth: 0 } : { calMonth: calMonth + 1 });
+  rsRender();
+}
+function rsSelectDate(ds) { rsState.date = ds; rsState.time = null; rsRender(); }
+function rsSelectTime(t)  { rsState.time = t; rsRender(); }
+
+function rsConfirm() {
+  const a        = rsState.original;
+  const doctorId = rsState.mode === 'keep' ? a.doctorId : rsState.doctorId;
+  const doctor   = getDoctorById(doctorId);
+  const typeId   = rsState.mode === 'keep' ? a.typeId   : rsState.typeId;
+  const typeName = rsState.mode === 'keep' ? a.typeName : rsState.typeName;
+  const duration = rsState.mode === 'keep' ? (a.duration || 30) : rsState.duration;
+
+  // Mark original as rescheduled
+  updateAppointmentStatus(rsState.apptId, 'rescheduled');
+
+  // Create the new appointment
+  addAppointment({
+    doctorId, doctorName: doctor.name, specialty: doctor.specialty,
+    patientId: a.patientId, patientNumber: a.patientNumber,
+    patientName: a.patientName, patientPhone: a.patientPhone,
+    clinic: rsState.clinicId,
+    clinicName: CLINICS.find(c => c.id === rsState.clinicId)?.name || '',
+    date: rsState.date, time: rsState.time,
+    typeId, typeName, duration,
+    reason: a.reason,
+    rescheduledFrom: rsState.apptId,
+  });
+
+  closeRescheduleModal();
+  renderClinicCalendar(rsState.clinicId);
 }
 
 // ── Patients tab ─────────────────────────────────────────────────────────────
@@ -537,12 +795,25 @@ function renderDoctorsTab() {
   const today = new Date().toISOString().split('T')[0];
   const DAY_NAMES = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 
+  const allAppts = getAppointments();
+  const now = new Date();
+  const weekStart = getMonday(now).toISOString().split('T')[0];
+  const weekEnd   = new Date(getMonday(now).getTime() + 7 * 86400000).toISOString().split('T')[0];
+  const monthStr  = today.slice(0, 7); // "YYYY-MM"
+
   container.innerHTML = DOCTORS.map(d => {
     const color    = getAvatarColor(d.name);
     const ini      = getInitials(d.name);
     const spec     = SPECIALTIES.find(s => s.id === d.specialty);
-    const upcoming = getAppointments().filter(a => a.doctorId === d.id && a.date >= today && a.status === 'confirmed').length;
     const workDays = d.days.map(i => DAY_NAMES[i]).join(', ');
+
+    const docAppts = allAppts.filter(a => a.doctorId === d.id && a.status !== 'cancelled' && a.status !== 'rescheduled');
+    const upcoming   = docAppts.filter(a => a.date >= today).length;
+    const weekTotal  = docAppts.filter(a => a.date >= weekStart && a.date < weekEnd).length;
+    const weekNew    = docAppts.filter(a => a.date >= weekStart && a.date < weekEnd && !a.patientId).length;
+    const monthTotal = docAppts.filter(a => a.date.startsWith(monthStr)).length;
+    const monthNew   = docAppts.filter(a => a.date.startsWith(monthStr) && !a.patientId).length;
+
     return `
       <div class="doctor-admin-card">
         <div class="doc-card-top">
@@ -554,6 +825,18 @@ function renderDoctorsTab() {
           </div>
           <div class="doc-badge">${upcoming} upcoming</div>
         </div>
+        <div class="doc-stats-row">
+          <div class="doc-stat">
+            <div class="doc-stat-num">${weekTotal}</div>
+            <div class="doc-stat-label">This week</div>
+            ${weekNew > 0 ? `<div class="doc-stat-new">${weekNew} new pt</div>` : ''}
+          </div>
+          <div class="doc-stat">
+            <div class="doc-stat-num">${monthTotal}</div>
+            <div class="doc-stat-label">This month</div>
+            ${monthNew > 0 ? `<div class="doc-stat-new">${monthNew} new pt</div>` : ''}
+          </div>
+        </div>
         <p class="doc-bio">${d.bio}</p>
         <div class="doc-schedule">
           <div class="doc-sched-item"><span class="sched-label">Days</span>${workDays}</div>
@@ -562,6 +845,27 @@ function renderDoctorsTab() {
         </div>
       </div>`;
   }).join('');
+}
+
+// ── Sidebar toggle ────────────────────────────────────────────────────────────
+
+function toggleSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  sidebar.classList.toggle('collapsed');
+}
+
+function openMobileSidebar() {
+  const sidebar  = document.getElementById('sidebar');
+  const backdrop = document.getElementById('sidebar-backdrop');
+  sidebar.classList.add('mobile-open');
+  if (backdrop) backdrop.style.display = 'block';
+}
+
+function closeMobileSidebar() {
+  const sidebar  = document.getElementById('sidebar');
+  const backdrop = document.getElementById('sidebar-backdrop');
+  sidebar.classList.remove('mobile-open');
+  if (backdrop) backdrop.style.display = '';
 }
 
 document.addEventListener('DOMContentLoaded', init);
