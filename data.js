@@ -8,12 +8,13 @@ const DOCTORS = [
 ];
 
 const APPOINTMENT_TYPES = [
-  { id: 'checkup',    name: 'Check-up & Cleaning',   duration: 60, price: 120, description: 'Routine exam, scale & polish'          },
-  { id: 'consult',    name: 'New Patient Consult',    duration: 45, price: 90,  description: 'First visit — full oral assessment'    },
-  { id: 'filling',    name: 'Filling / Restoration',  duration: 60, price: 180, description: 'Cavity filling or tooth restoration'   },
-  { id: 'extraction', name: 'Tooth Extraction',       duration: 45, price: 150, description: 'Simple or surgical tooth removal'      },
-  { id: 'rootcanal',  name: 'Root Canal',             duration: 90, price: 350, description: 'Endodontic treatment to save the tooth' },
-  { id: 'whitening',  name: 'Teeth Whitening',        duration: 60, price: 200, description: 'Professional in-chair whitening'       },
+  { id: 'checkup',      name: 'Check-up & Cleaning',   duration: 60,  price: 120,  description: 'Routine exam, scale & polish'           },
+  { id: 'consult',      name: 'New Patient Consult',    duration: 45,  price: 90,   description: 'First visit — full oral assessment'     },
+  { id: 'filling',      name: 'Filling / Restoration',  duration: 60,  price: 180,  description: 'Cavity filling or tooth restoration'    },
+  { id: 'extraction',   name: 'Tooth Extraction',       duration: 45,  price: 150,  description: 'Simple or surgical tooth removal'       },
+  { id: 'rootcanal',    name: 'Root Canal',             duration: 90,  price: 350,  description: 'Endodontic treatment to save the tooth'  },
+  { id: 'whitening',    name: 'Teeth Whitening',        duration: 60,  price: 200,  description: 'Professional in-chair whitening'        },
+  { id: 'orthodontic',  name: 'Orthodontic Treatment',  duration: 60,  price: 800,  description: 'Braces, aligners, and orthodontic adjustment' },
 ];
 
 const CLINICS = [
@@ -50,6 +51,15 @@ function updateAppointmentStatus(id, status) {
   const idx = list.findIndex(a => a.id === id);
   if (idx === -1) return false;
   list[idx].status = status;
+  saveAppointments(list);
+  return true;
+}
+
+function updateAppointmentPaid(id, paidAmount) {
+  const list = getAppointments();
+  const idx = list.findIndex(a => a.id === id);
+  if (idx === -1) return false;
+  list[idx].paidAmount = Math.max(0, Number(paidAmount) || 0);
   saveAppointments(list);
   return true;
 }
@@ -157,8 +167,8 @@ function generateTimeSlots(doctor, dateStr, durationMin) {
 // ── Seed Data ─────────────────────────────────────────────────────────────────
 
 function seedData() {
-  if (localStorage.getItem('clinic_seeded_v7')) return;
-  ['clinic_seeded','clinic_seeded_v2','clinic_seeded_v3','clinic_seeded_v4','clinic_seeded_v5','clinic_seeded_v6'].forEach(k => localStorage.removeItem(k));
+  if (localStorage.getItem('clinic_seeded_v8')) return;
+  ['clinic_seeded','clinic_seeded_v2','clinic_seeded_v3','clinic_seeded_v4','clinic_seeded_v5','clinic_seeded_v6','clinic_seeded_v7'].forEach(k => localStorage.removeItem(k));
 
   // Compute Monday of the current week
   const today = new Date(); today.setHours(0,0,0,0);
@@ -186,6 +196,10 @@ function seedData() {
     { id:'PAT-SEED10', patientNumber:'P010', name:'Jack Cheung',  phone:'9800 0010', clinic:'central',    createdAt: now },
     { id:'PAT-SEED11', patientNumber:'P011', name:'Karen Liu',    phone:'9800 0011', clinic:'taikoo',     createdAt: now },
     { id:'PAT-SEED12', patientNumber:'P012', name:'Leo Pang',     phone:'9800 0012', clinic:'taikoo',     createdAt: now },
+    // Orthodontic patients
+    { id:'PAT-SEED13', patientNumber:'P013', name:'Michael Yip',  phone:'9800 0013', clinic:'central',    createdAt: now },
+    { id:'PAT-SEED14', patientNumber:'P014', name:'Nancy Chu',    phone:'9800 0014', clinic:'taikoo',     createdAt: now },
+    { id:'PAT-SEED15', patientNumber:'P015', name:'Oscar Wong',   phone:'9800 0015', clinic:'shaukeiwan', createdAt: now },
   ];
   savePatients(seedPatients);
 
@@ -247,10 +261,28 @@ function seedData() {
     appt('SEED-S06','shaukeiwan','Shau Kei Wan',2,3,14, 0, 'PAT-SEED07','P007','Grace Tsang','9800 0007','whitening', 'Teeth Whitening',      30,'confirmed','Whitening treatment'),
     appt('SEED-S07','shaukeiwan','Shau Kei Wan',2,3,15,30, null,'','Stella Chan','6100 0037','consult',   'New Patient Consult',  30,'confirmed','New patient walk-in'),
     // ── Shau Kei Wan ── Fri: Dr Samuel Chan only ───────────────────────────────
-    appt('SEED-S08','shaukeiwan','Shau Kei Wan',1,4, 9, 0, 'PAT-SEED09','P009','Iris Tang',  '9800 0009','checkup',   'Check-up & Cleaning',  30,'completed','Annual check'),
-    appt('SEED-S09','shaukeiwan','Shau Kei Wan',1,4,10,30, null,'','Ming Lau',   '6100 0038','consult',   'New Patient Consult',  30,'confirmed','New patient referral'),
+    appt('SEED-S08','shaukeiwan','Shau Kei Wan',1,4, 9, 0, 'PAT-SEED09','P009','Iris Tang',  '9800 0009','checkup',     'Check-up & Cleaning',   30,'completed','Annual check'),
+    appt('SEED-S09','shaukeiwan','Shau Kei Wan',1,4,10,30, null,'','Ming Lau',   '6100 0038','consult',     'New Patient Consult',   30,'confirmed','New patient referral'),
+
+    // ── Orthodontic appointments — Central (P013 Michael Yip) ──────────────────
+    appt('SEED-O01','central','Central',1,0,11, 0, 'PAT-SEED13','P013','Michael Yip','9800 0013','orthodontic','Orthodontic Treatment',60,'completed','Initial fitting — upper braces'),
+    appt('SEED-O02','central','Central',2,3,10,30, 'PAT-SEED13','P013','Michael Yip','9800 0013','orthodontic','Orthodontic Treatment',60,'confirmed','4-week adjustment'),
+    // ── Orthodontic appointments — Taikoo (P014 Nancy Chu) ─────────────────────
+    appt('SEED-O03','taikoo','Taikoo',  1,1,13, 0, 'PAT-SEED14','P014','Nancy Chu', '9800 0014','orthodontic','Orthodontic Treatment',60,'completed','Aligner fitting — set 1'),
+    appt('SEED-O04','taikoo','Taikoo',  1,3,13, 0, 'PAT-SEED14','P014','Nancy Chu', '9800 0014','orthodontic','Orthodontic Treatment',60,'confirmed','Aligner progress check'),
+    // ── Orthodontic appointments — Shau Kei Wan (P015 Oscar Wong) ──────────────
+    appt('SEED-O05','shaukeiwan','Shau Kei Wan',1,2, 9, 0, 'PAT-SEED15','P015','Oscar Wong','9800 0015','orthodontic','Orthodontic Treatment',60,'completed','Initial consultation & records'),
+    appt('SEED-O06','shaukeiwan','Shau Kei Wan',1,4,13, 0, 'PAT-SEED15','P015','Oscar Wong','9800 0015','orthodontic','Orthodontic Treatment',60,'confirmed','Bonding appointment'),
   ];
 
-  saveAppointments(list);
-  localStorage.setItem('clinic_seeded_v7', '1');
+  // Seed paid amounts for orthodontic patients
+  const seedPaid = {
+    'SEED-O01': 800, 'SEED-O02': 0,    // Michael: 1 of 2 paid
+    'SEED-O03': 800, 'SEED-O04': 400,  // Nancy: 1.5 of 2 paid
+    'SEED-O05': 0,   'SEED-O06': 0,    // Oscar: none paid yet
+  };
+  const apptList = list.map(a => seedPaid[a.id] !== undefined ? { ...a, paidAmount: seedPaid[a.id] } : a);
+
+  saveAppointments(apptList);
+  localStorage.setItem('clinic_seeded_v8', '1');
 }

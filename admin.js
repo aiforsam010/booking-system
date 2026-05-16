@@ -64,7 +64,9 @@ function showTab(tab) {
   if (tab === 'appts-taikoo')     renderClinicCalendar('taikoo');
   if (tab === 'appts-shaukeiwan') renderClinicCalendar('shaukeiwan');
   if (tab === 'patients')         renderPatientsTab();
+  if (tab === 'ortho-patients')   renderOrthoTab();
   if (tab === 'doctors')          renderDoctorsTab();
+  if (tab === 'settings')         renderSettingsTab();
   if (tab === 'booking')          setTimeout(initBooking, 0);
 }
 
@@ -287,11 +289,12 @@ function renderClinicCalendar(clinicId) {
                     const cls = !isWorking ? 'wt-off' : isLunch ? 'wt-lunch' : '';
                     return `<td class="wt-cell${cls ? ' '+cls : ''}${isToday ? ' wt-today-col' : ''}"></td>`;
                   }
-                  const isNewPt = !cell.appt.patientId;
-                  const color   = isNewPt ? '#ea580c' : getAvatarColor(doc.name);
+                  const isNewPt  = !cell.appt.patientId;
+                  const isOrtho  = cell.appt.typeId === 'orthodontic';
+                  const color    = isNewPt ? '#ea580c' : isOrtho ? '#7c3aed' : getAvatarColor(doc.name);
                   return `<td class="wt-cell wt-appt-cell${isToday ? ' wt-today-col' : ''}" rowspan="${cell.rowspan}">
-                    <div class="wt-appt${isNewPt ? ' wt-new-patient' : ''}" style="border-left:3px solid ${color};background:${color}18;">
-                      <div class="wt-appt-name">${isNewPt ? '<span class="wt-new-badge">NEW</span>' : ''}${cell.appt.patientName}</div>
+                    <div class="wt-appt${isNewPt ? ' wt-new-patient' : ''}${isOrtho ? ' wt-ortho-appt' : ''}" style="border-left:3px solid ${color};background:${color}18;">
+                      <div class="wt-appt-name">${isNewPt ? '<span class="wt-new-badge">NEW</span>' : ''}${isOrtho ? '<span class="wt-ortho-badge">ORTHO</span>' : ''}${cell.appt.patientName}</div>
                       ${cell.rowspan >= 2 ? `<div class="wt-appt-type">${cell.appt.typeName}</div>` : ''}
                       ${cell.appt.status === 'confirmed' ? `<div class="wt-appt-btns">
                         <button class="btn-xs btn-outline-sm" onclick="openRescheduleModal('${cell.appt.id}','${clinicId}')">Reschedule</button>
@@ -795,6 +798,115 @@ function renderPatientHistory(id) {
     }).join('')}`;
 }
 
+// ── Orthodontic Patients tab ──────────────────────────────────────────────────
+
+function renderOrthoTab() {
+  const q       = (document.getElementById('ortho-search')?.value || '').toLowerCase();
+  const allAppts = getAppointments();
+  const allPts   = getPatients();
+
+  // Collect all orthodontic appointment data grouped by patient (registered)
+  const orthoAppts = allAppts.filter(a => a.typeId === 'orthodontic');
+
+  // Build patient map: registered patients who have ≥1 orthodontic appt
+  const patMap = {};
+  orthoAppts.forEach(a => {
+    if (!a.patientId) return; // skip unregistered walk-ins
+    if (!patMap[a.patientId]) {
+      const pt = allPts.find(p => p.id === a.patientId);
+      if (!pt) return;
+      patMap[a.patientId] = { patient: pt, appts: [] };
+    }
+    patMap[a.patientId].appts.push(a);
+  });
+
+  let rows = Object.values(patMap);
+
+  if (q) rows = rows.filter(({ patient: p }) =>
+    p.name.toLowerCase().includes(q) ||
+    p.patientNumber.toLowerCase().includes(q) ||
+    p.phone.includes(q) ||
+    (p.clinic || '').toLowerCase().includes(q));
+
+  rows.sort((a, b) => a.patient.patientNumber.localeCompare(b.patient.patientNumber));
+
+  const countEl = document.getElementById('ortho-count');
+  if (countEl) countEl.textContent = `${rows.length} orthodontic patient${rows.length !== 1 ? 's' : ''}`;
+
+  const container = document.getElementById('ortho-patient-list');
+  if (!container) return;
+
+  if (!rows.length) {
+    container.innerHTML = '<div class="empty-state">No orthodontic patients found.</div>';
+    return;
+  }
+
+  const orthoPrice = APPOINTMENT_TYPES.find(t => t.id === 'orthodontic')?.price || 800;
+
+  container.innerHTML = `
+    <div class="ortho-list-header">
+      <span>Patient No.</span>
+      <span>Name</span>
+      <span>Phone</span>
+      <span>Clinic</span>
+      <span>Sessions</span>
+      <span>Total Fee</span>
+      <span>Paid (HK$)</span>
+      <span>Outstanding</span>
+    </div>
+    ${rows.map(({ patient: p, appts }) => {
+      const billable   = appts.filter(a => a.status !== 'cancelled' && a.status !== 'rescheduled');
+      const totalFee   = billable.length * orthoPrice;
+      const paid       = billable.reduce((sum, a) => sum + (a.paidAmount || 0), 0);
+      const outstanding = totalFee - paid;
+      const clinic     = CLINICS.find(c => c.id === p.clinic)?.name || p.clinic || '—';
+      return `
+        <div class="pat-row ortho-pat-row" id="opr-${p.id}">
+          <div class="pat-num">${p.patientNumber}</div>
+          <div class="pat-name">${p.name}</div>
+          <div class="pat-phone">${p.phone}</div>
+          <div class="pat-clinic"><span class="clinic-badge clinic-${p.clinic}">${clinic}</span></div>
+          <div class="pat-appts">${billable.length}</div>
+          <div class="ortho-fee">HK$${totalFee.toLocaleString()}</div>
+          <div class="ortho-paid" id="paid-cell-${p.id}">
+            <span class="ortho-paid-val">HK$${paid.toLocaleString()}</span>
+            <button class="btn-xs btn-primary" onclick="openPaymentEditor('${p.id}')">Edit</button>
+          </div>
+          <div class="ortho-outstanding ${outstanding > 0 ? 'outstanding-due' : 'outstanding-clear'}">
+            ${outstanding > 0 ? `HK$${outstanding.toLocaleString()}` : '✓ Paid'}
+          </div>
+        </div>
+        <div class="pat-history-panel" id="ophist-${p.id}" style="display:none"></div>
+        <div class="ortho-pay-editor" id="pay-editor-${p.id}" style="display:none">
+          ${appts.filter(a => a.status !== 'cancelled' && a.status !== 'rescheduled').map(a => `
+            <div class="ope-row">
+              <span class="ope-date">${a.date} ${a.time}</span>
+              <span class="ope-type">${a.typeName}</span>
+              <span class="ope-fee">HK$${orthoPrice}</span>
+              <span class="ope-paid-wrap">
+                Paid: <input type="number" class="ope-input" id="ope-${a.id}"
+                  value="${a.paidAmount || 0}" min="0" max="${orthoPrice}" step="50">
+              </span>
+              <button class="btn-xs btn-primary" onclick="saveApptPayment('${a.id}','${p.id}')">Save</button>
+            </div>
+          `).join('')}
+        </div>`;
+    }).join('')}`;
+}
+
+function openPaymentEditor(patientId) {
+  const ed = document.getElementById('pay-editor-' + patientId);
+  if (!ed) return;
+  ed.style.display = ed.style.display === 'none' ? 'block' : 'none';
+}
+
+function saveApptPayment(apptId, patientId) {
+  const input = document.getElementById('ope-' + apptId);
+  if (!input) return;
+  updateAppointmentPaid(apptId, input.value);
+  renderOrthoTab();
+}
+
 // ── Doctors tab ───────────────────────────────────────────────────────────────
 
 function renderDoctorsTab() {
@@ -874,5 +986,196 @@ function closeMobileSidebar() {
   sidebar.classList.remove('mobile-open');
   if (backdrop) backdrop.style.display = '';
 }
+
+// ── Settings & Backup tab ─────────────────────────────────────────────────────
+
+const BACKUP_LOG_KEY = 'clinic_backup_log';
+const BACKUP_LOG_MAX_DAYS = 7;
+
+function getBackupLog() {
+  return JSON.parse(localStorage.getItem(BACKUP_LOG_KEY) || '[]');
+}
+
+function addBackupLogEntry(label) {
+  const log = getBackupLog()
+    .filter(e => Date.now() - new Date(e.ts).getTime() < BACKUP_LOG_MAX_DAYS * 86400000);
+  log.unshift({ ts: new Date().toISOString(), label });
+  localStorage.setItem(BACKUP_LOG_KEY, JSON.stringify(log.slice(0, 100)));
+}
+
+function renderSettingsTab() {
+  const log    = getBackupLog()
+    .filter(e => Date.now() - new Date(e.ts).getTime() < BACKUP_LOG_MAX_DAYS * 86400000);
+  const logEl  = document.getElementById('backup-log');
+  if (!logEl) return;
+  if (!log.length) {
+    logEl.innerHTML = '<div class="empty-state">No automatic backups recorded yet.</div>';
+    return;
+  }
+  logEl.innerHTML = log.map(e => {
+    const d = new Date(e.ts);
+    return `<div class="backup-log-row">
+      <span class="bl-icon">✓</span>
+      <span class="bl-label">${e.label}</span>
+      <span class="bl-time">${d.toLocaleDateString('en-HK', { weekday:'short', month:'short', day:'numeric' })} ${d.toLocaleTimeString('en-HK', { hour:'2-digit', minute:'2-digit' })}</span>
+    </div>`;
+  }).join('');
+}
+
+function buildWorkbook(type) {
+  const wb    = XLSX.utils.book_new();
+  const appts = getAppointments();
+  const pts   = getPatients();
+  const orthoPrice = APPOINTMENT_TYPES.find(t => t.id === 'orthodontic')?.price || 800;
+
+  function apptRows(list) {
+    return list.map(a => ({
+      ID: a.id, Date: a.date, Time: a.time,
+      Clinic: a.clinicName, Doctor: a.doctorName,
+      Patient: a.patientName, 'Patient No.': a.patientNumber || '',
+      Phone: a.patientPhone, Treatment: a.typeName,
+      Duration: a.duration, Status: a.status,
+      'Paid (HK$)': a.paidAmount || 0, Reason: a.reason || '',
+    }));
+  }
+
+  function ptRows(list) {
+    return list.map(p => ({
+      ID: p.id, 'Patient No.': p.patientNumber, Name: p.name,
+      Phone: p.phone, Clinic: p.clinic, 'Created At': p.createdAt,
+    }));
+  }
+
+  function orthoRows() {
+    const orthoAppts = appts.filter(a => a.typeId === 'orthodontic');
+    const map = {};
+    orthoAppts.forEach(a => {
+      if (!a.patientId) return;
+      if (!map[a.patientId]) {
+        const pt = pts.find(p => p.id === a.patientId);
+        if (!pt) return;
+        map[a.patientId] = { pt, appts: [] };
+      }
+      map[a.patientId].appts.push(a);
+    });
+    const rows = [];
+    Object.values(map).forEach(({ pt, appts: pa }) => {
+      const billable = pa.filter(a => a.status !== 'cancelled' && a.status !== 'rescheduled');
+      const total = billable.length * orthoPrice;
+      const paid  = billable.reduce((s, a) => s + (a.paidAmount || 0), 0);
+      rows.push({
+        'Patient No.': pt.patientNumber, Name: pt.name, Phone: pt.phone,
+        Clinic: pt.clinic, Sessions: billable.length,
+        'Total Fee (HK$)': total, 'Paid (HK$)': paid, 'Outstanding (HK$)': total - paid,
+      });
+      billable.forEach(a => rows.push({
+        'Patient No.': '', Name: `  └ ${a.date} ${a.time}`, Phone: '', Clinic: '',
+        Sessions: '', 'Total Fee (HK$)': orthoPrice,
+        'Paid (HK$)': a.paidAmount || 0, 'Outstanding (HK$)': orthoPrice - (a.paidAmount || 0),
+      }));
+    });
+    return rows;
+  }
+
+  const clinics = ['central', 'taikoo', 'shaukeiwan'];
+
+  if (type === 'appointments' || type === 'full') {
+    clinics.forEach(c => {
+      const rows = apptRows(appts.filter(a => a.clinic === c));
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), c.charAt(0).toUpperCase() + c.slice(1));
+    });
+  }
+  if (type === 'patients' || type === 'full') {
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(ptRows(pts)), 'Patients');
+  }
+  if (type === 'orthodontic' || type === 'full') {
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(orthoRows()), 'Orthodontic');
+  }
+
+  return wb;
+}
+
+function exportXlsx(type, isAuto) {
+  if (typeof XLSX === 'undefined') { alert('Excel library not loaded. Check your internet connection.'); return; }
+  const labels = { appointments: 'All Appointments', patients: 'Patients', orthodontic: 'Orthodontic', full: 'Full Backup' };
+  const prefix = { appointments: 'appointments', patients: 'patients', orthodontic: 'orthodontic', full: 'full-backup' };
+  const ts     = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+  const fname  = `clinic-${prefix[type]}-${ts}.xlsx`;
+  const wb     = buildWorkbook(type);
+  XLSX.writeFile(wb, fname);
+  addBackupLogEntry(`${isAuto ? '(Auto) ' : ''}${labels[type]} → ${fname}`);
+  if (currentTab === 'settings') renderSettingsTab();
+}
+
+function handleImport(input) {
+  const file = input.files[0];
+  if (!file) return;
+  document.getElementById('import-filename').textContent = file.name;
+  if (!confirm(`Import "${file.name}"? This will overwrite the current database and cannot be undone.`)) {
+    input.value = '';
+    document.getElementById('import-filename').textContent = 'Choose a .xlsx file to import…';
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      if (typeof XLSX === 'undefined') { alert('Excel library not loaded.'); return; }
+      const wb      = XLSX.read(e.target.result, { type: 'array' });
+      let imported  = [];
+
+      const clinicSheets = ['Central', 'Taikoo', 'Shaukeiwan'];
+      let apptData = null;
+      clinicSheets.forEach(name => {
+        const sh = wb.Sheets[name];
+        if (sh) {
+          const rows = XLSX.utils.sheet_to_json(sh);
+          if (!apptData) apptData = [];
+          rows.forEach(r => apptData.push({
+            id: r.ID, clinic: name.toLowerCase(), clinicName: name,
+            doctorName: r.Doctor, date: r.Date, time: r.Time,
+            patientName: r.Patient, patientNumber: r['Patient No.'] || '',
+            patientPhone: r.Phone, typeName: r.Treatment,
+            duration: r.Duration, status: r.Status,
+            paidAmount: r['Paid (HK$)'] || 0, reason: r.Reason || '',
+          }));
+          imported.push(name);
+        }
+      });
+      if (apptData) saveAppointments(apptData);
+
+      const ptSheet = wb.Sheets['Patients'];
+      if (ptSheet) {
+        const rows = XLSX.utils.sheet_to_json(ptSheet);
+        savePatients(rows.map(r => ({
+          id: r.ID, patientNumber: r['Patient No.'], name: r.Name,
+          phone: r.Phone, clinic: r.Clinic, createdAt: r['Created At'],
+        })));
+        imported.push('Patients');
+      }
+
+      alert(`Import successful!\nSheets imported: ${imported.join(', ')}`);
+      renderSettingsTab();
+    } catch (err) {
+      alert('Import failed: ' + err.message);
+    }
+    input.value = '';
+    document.getElementById('import-filename').textContent = 'Choose a .xlsx file to import…';
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// ── Scheduled auto-backup (1 PM and 7 PM while page is open) ─────────────────
+
+let _lastAutoBackupHour = -1;
+
+function checkAutoBackup() {
+  const h = new Date().getHours();
+  if ((h === 13 || h === 19) && h !== _lastAutoBackupHour) {
+    _lastAutoBackupHour = h;
+    exportXlsx('full', true);
+  }
+}
+
+setInterval(checkAutoBackup, 60000); // check every minute
 
 document.addEventListener('DOMContentLoaded', init);

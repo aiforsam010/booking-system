@@ -59,8 +59,14 @@
           <button class="nav-item" data-tab="patients" onclick="showTab('patients')" title="Patients">
             <span class="nav-icon">👥</span><span class="nav-label"> Patients</span>
           </button>
+          <button class="nav-item" data-tab="ortho-patients" onclick="showTab('ortho-patients')" title="Orthodontic Patients">
+            <span class="nav-icon">📐</span><span class="nav-label"> Orthodontic</span>
+          </button>
           <button class="nav-item" data-tab="doctors" onclick="showTab('doctors')" title="Dentists">
             <span class="nav-icon">🦷</span><span class="nav-label"> Dentists</span>
+          </button>
+          <button class="nav-item" data-tab="settings" onclick="showTab('settings')" title="Settings">
+            <span class="nav-icon">⚙️</span><span class="nav-label"> Settings</span>
           </button>
         </nav>
 
@@ -293,12 +299,86 @@
           <div id="patient-list"></div>
         </div>
 
+        <!-- ── Orthodontic Patients ── -->
+        <div id="tab-ortho-patients" class="tab-pane" style="display:none">
+          <div class="admin-header">
+            <div>
+              <h1>📐 Orthodontic Patients</h1>
+              <div id="ortho-count" style="font-size:13px;color:var(--text-muted);margin-top:2px;"></div>
+            </div>
+          </div>
+
+          <!-- Search bar -->
+          <div class="pat-search-bar">
+            <input id="ortho-search" type="text" class="form-input"
+                   placeholder="Search by name, patient number, phone, or clinic…"
+                   oninput="renderOrthoTab()">
+          </div>
+
+          <!-- Orthodontic patient list -->
+          <div id="ortho-patient-list"></div>
+        </div>
+
         <!-- ── Dentists ── -->
         <div id="tab-doctors" class="tab-pane" style="display:none">
           <div class="admin-header">
             <h1>Dentists</h1>
           </div>
           <div id="doctors-list" class="doctors-grid"></div>
+        </div>
+
+        <!-- ── Settings ── -->
+        <div id="tab-settings" class="tab-pane" style="display:none">
+          <div class="admin-header">
+            <h1>⚙️ Settings &amp; Backup</h1>
+          </div>
+
+          <div class="settings-section">
+            <h2>Data Backup</h2>
+            <p class="settings-desc">Export your data as <code>.xlsx</code> files. Automatic backups run at 1 PM and 7 PM whenever this page is open.</p>
+            <div class="backup-grid">
+              <div class="backup-card">
+                <div class="backup-card-title">📅 All Appointments</div>
+                <div class="backup-card-sub">All three clinics combined</div>
+                <button class="btn btn-primary btn-sm" onclick="exportXlsx('appointments')">Export .xlsx</button>
+              </div>
+              <div class="backup-card">
+                <div class="backup-card-title">👥 Patient List</div>
+                <div class="backup-card-sub">Registered patients</div>
+                <button class="btn btn-primary btn-sm" onclick="exportXlsx('patients')">Export .xlsx</button>
+              </div>
+              <div class="backup-card">
+                <div class="backup-card-title">📐 Orthodontic Patients</div>
+                <div class="backup-card-sub">With fee &amp; payment data</div>
+                <button class="btn btn-primary btn-sm" onclick="exportXlsx('orthodontic')">Export .xlsx</button>
+              </div>
+              <div class="backup-card">
+                <div class="backup-card-title">💾 Full Backup</div>
+                <div class="backup-card-sub">All data in one workbook</div>
+                <button class="btn btn-primary btn-sm" onclick="exportXlsx('full')">Export .xlsx</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <h2>Restore from Backup</h2>
+            <p class="settings-desc">Import a previously exported <code>.xlsx</code> backup to overwrite the current database. Each sheet replaces its corresponding data store.</p>
+            <div class="import-area">
+              <label class="import-label" for="import-file">
+                <span class="import-icon">📂</span>
+                <span id="import-filename">Choose a .xlsx file to import…</span>
+              </label>
+              <input type="file" id="import-file" accept=".xlsx" style="display:none"
+                     onchange="handleImport(this)">
+              <p class="import-warning">⚠️ Importing will <strong>overwrite</strong> the current database. This cannot be undone.</p>
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <h2>Automatic Backup Log</h2>
+            <p class="settings-desc">Auto-backups trigger at 1 PM and 7 PM when this page is open. Entries older than 7 days are removed automatically.</p>
+            <div id="backup-log"></div>
+          </div>
         </div>
 
       </main>
@@ -310,6 +390,7 @@
     <div class="modal-card" id="rs-card"></div>
   </div>
 
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
   <script src="data.js"></script>
   <script src="app.js"></script>
   <script src="admin.js"></script>
